@@ -1,9 +1,62 @@
 <?php
 session_start();
-require 'functions.php';
+require 'koneksi.php';
+
+// User Authentication Functions
+function registerUser($nickname, $email, $password) {
+    global $pdo;
+    $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+    $stmt = $pdo->prepare("INSERT INTO author (nickname, email, password) VALUES (?, ?, ?)");
+    return $stmt->execute([$nickname, $email, $hashed_password]);
+}
+
+function loginUser($email, $password) {
+    global $pdo;
+    $stmt = $pdo->prepare("SELECT * FROM author WHERE email = ?");
+    $stmt->execute([$email]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if ($user && password_verify($password, $user['password'])) {
+        return $user;
+    }
+    return false;
+}
+
+function getAuthorById($id) {
+    global $pdo;
+    $stmt = $pdo->prepare("SELECT * FROM author WHERE id = ?");
+    $stmt->execute([$id]);
+    return $stmt->fetch(PDO::FETCH_ASSOC);
+}
+
+function getAuthorByNickname($nickname) {
+    global $pdo;
+    $stmt = $pdo->prepare("SELECT * FROM author WHERE nickname = ?");
+    $stmt->execute([$nickname]);
+    return $stmt->fetch(PDO::FETCH_ASSOC);
+}
+
+function getAuthorByEmail($email) {
+    global $pdo;
+    $stmt = $pdo->prepare("SELECT * FROM author WHERE email = ?");
+    $stmt->execute([$email]);
+    return $stmt->fetch(PDO::FETCH_ASSOC);
+}
+
+// Utility Functions
+function isLoggedIn() {
+    return isset($_SESSION['author_id']);
+}
+
+function requireLogin() {
+    if (!isLoggedIn()) {
+        header("Location: login.php");
+        exit();
+    }
+}
 
 // Redirect jika sudah login
-if (isset($_SESSION['user_id'])) {
+if (isset($_SESSION['author_id'])) {
     header("Location: dashboard.php");
     exit();
 }
@@ -12,33 +65,32 @@ $message = '';
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $username = trim($_POST['username']);
+    $nickname = trim($_POST['nickname']);
     $email = trim($_POST['email']);
     $password = $_POST['password'];
     $confirm_password = $_POST['confirm_password'];
-    $full_name = trim($_POST['full_name']);
     
     // Validasi input
-    if (empty($username) || empty($email) || empty($password) || empty($confirm_password) || empty($full_name)) {
+    if (empty($nickname) || empty($email) || empty($password) || empty($confirm_password)) {
         $error = "Semua field harus diisi.";
     } elseif ($password !== $confirm_password) {
         $error = "Konfirmasi password tidak cocok.";
-    } elseif (strlen($password) < 6) {
-        $error = "Password minimal 6 karakter.";
+    } elseif (strlen($password) < 8) {
+        $error = "Password minimal 8 karakter.";
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $error = "Format email tidak valid.";
     } else {
-        // Cek apakah username atau email sudah ada
-        if (getUserByUsername($username)) {
-            $error = "Username sudah terdaftar.";
-        } elseif (getUserByEmail($email)) {
+        // Cek apakah nickname atau email sudah ada
+        if (getAuthorByNickname($nickname)) {
+            $error = "Nickname sudah terdaftar.";
+        } elseif (getAuthorByEmail($email)) {
             $error = "Email sudah terdaftar.";
         } else {
-            // Register user
-            if (registerUser($username, $email, $password, $full_name)) {
+            // Register author
+            if (registerUser($nickname, $email, $password)) {
                 $message = "Registrasi berhasil! Silakan login.";
                 // Reset form
-                $username = $email = $full_name = '';
+                $nickname = $email = '';
             } else {
                 $error = "Gagal mendaftar. Silakan coba lagi.";
             }
@@ -53,6 +105,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Registrasi - Madiun Blog</title>
+    <link rel="icon" href="/assets/img/head_logo.jpg" type="image/jpg">
     <link rel="stylesheet" href="style.css">
     <style>
         .auth-container {
@@ -171,13 +224,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
         <form method="POST">
             <div class="form-group">
-                <label for="full_name">Nama Lengkap *</label>
-                <input type="text" id="full_name" name="full_name" value="<?= isset($full_name) ? htmlspecialchars($full_name) : '' ?>" required>
-            </div>
-
-            <div class="form-group">
-                <label for="username">Username *</label>
-                <input type="text" id="username" name="username" value="<?= isset($username) ? htmlspecialchars($username) : '' ?>" required>
+                <label for="nickname">Username *</label>
+                <input type="text" id="nickname" name="nickname" value="<?= isset($nickname) ? htmlspecialchars($nickname) : '' ?>" required>
             </div>
 
             <div class="form-group">

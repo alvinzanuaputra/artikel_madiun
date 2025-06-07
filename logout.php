@@ -1,10 +1,11 @@
 <?php
 session_start();
-
-// Destroy all session data
 session_destroy();
 
-// Redirect to login page with success message
-header("Location: login.php?logout=success");
+session_start();
+$_SESSION['toast_message'] = 'Anda berhasil logout.';
+$_SESSION['toast_type'] = 'success';
+
+header("Location: index.php");
 exit();
 ?>

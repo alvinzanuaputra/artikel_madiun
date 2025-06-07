@@ -1,44 +1,131 @@
 <?php
 session_start();
-require 'functions.php';
+require 'koneksi.php';
+
+// Pastikan hanya author yang login yang bisa mengakses halaman ini
+if (!isset($_SESSION['author_id'])) {
+    header("Location: login.php");
+    exit();
+}
+
+$current_author_id = $_SESSION['author_id'];
+$current_author_nickname = $_SESSION['nickname'];
+
+function tambahArtikel($title, $author_id, $category_id, $content, $picture) {
+    global $pdo;
+    
+    try {
+        // Mulai transaksi
+        $pdo->beginTransaction();
+        
+        // Insert artikel
+        $stmt = $pdo->prepare("INSERT INTO article (title, content, picture, date) VALUES (?, ?, ?, NOW())");
+        $stmt->execute([$title, $content, $picture]);
+        $article_id = $pdo->lastInsertId();
+        
+        // Insert penulis artikel
+        $stmt_author = $pdo->prepare("INSERT INTO article_author (article_id, author_id) VALUES (?, ?)");
+        $stmt_author->execute([$article_id, $author_id]);
+        
+        // Insert kategori artikel
+        $stmt_category = $pdo->prepare("INSERT INTO article_category (article_id, category_id) VALUES (?, ?)");
+        $stmt_category->execute([$article_id, $category_id]);
+        
+        // Commit transaksi
+        $pdo->commit();
+        
+        return true;
+    } catch (PDOException $e) {
+        // Rollback transaksi jika terjadi kesalahan
+        $pdo->rollBack();
+        error_log("Gagal menambahkan artikel: " . $e->getMessage());
+        return false;
+    }
+}
+
+function uploadGambar($file) {
+    $allowed = ['jpg', 'jpeg', 'png', 'gif'];
+    $max_size = 5 * 1024 * 1024; // 5MB
+    
+    if ($file['error'] !== UPLOAD_ERR_OK) {
+        return ['success' => false, 'message' => 'Gagal mengupload gambar.'];
+    }
+    
+    $filename = $file['name'];
+    $filetype = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+    $filesize = $file['size'];
+    
+    // Validasi tipe file
+    if (!in_array($filetype, $allowed)) {
+        return ['success' => false, 'message' => 'Format file tidak didukung. Gunakan JPG, JPEG, PNG, atau GIF.'];
+    }
+    
+    // Validasi ukuran file
+    if ($filesize > $max_size) {
+        return ['success' => false, 'message' => 'Ukuran gambar terlalu besar. Maksimal 5MB.'];
+    }
+    
+    // Generate nama file unik
+    $new_filename = time() . '_' . bin2hex(random_bytes(8)) . '.' . $filetype;
+    $upload_path = 'assets/img/' . $new_filename;
+    
+    // Pindahkan file
+    if (move_uploaded_file($file['tmp_name'], $upload_path)) {
+        return ['success' => true, 'filename' => $new_filename];
+    } else {
+        return ['success' => false, 'message' => 'Gagal memindahkan file.'];
+    }
+}
+
+function getCategories() {
+    global $pdo;
+    $stmt = $pdo->query("SELECT id, name FROM category");
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+$categories = getCategories();
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $title = trim($_POST['title']);
-    $author = trim($_POST['author']);
-    $category = trim($_POST['category']);
-    $content = trim($_POST['content']);
+    $title = trim($_POST['title'] ?? '');
+    $content = trim($_POST['content'] ?? '');
+    $category = $_POST['category'] ?? '';
     
-    // Handle file upload
+    $errors = [];
+    
+    // Validasi input
+    if (empty($title)) {
+        $errors[] = "Judul artikel harus diisi.";
+    }
+    
+    if (empty($content)) {
+        $errors[] = "Isi artikel harus diisi.";
+    }
+    
+    if (empty($category)) {
+        $errors[] = "Pilih kategori artikel.";
+    }
+    
+    // Validasi gambar
     $picture = '';
-    if (isset($_FILES['picture']) && $_FILES['picture']['error'] == 0) {
-        $allowed = ['jpg', 'jpeg', 'png', 'gif'];
-        $filename = $_FILES['picture']['name'];
-        $filetype = pathinfo($filename, PATHINFO_EXTENSION);
+    if (isset($_FILES['picture']) && $_FILES['picture']['error'] != UPLOAD_ERR_NO_FILE) {
+        $upload_result = uploadGambar($_FILES['picture']);
         
-        if (in_array(strtolower($filetype), $allowed)) {
-            $new_filename = time() . '_' . $filename;
-            $upload_path = 'img/' . $new_filename;
-            
-            if (move_uploaded_file($_FILES['picture']['tmp_name'], $upload_path)) {
-                $picture = $new_filename;
-            } else {
-                $error = "Gagal mengupload gambar.";
-            }
+        if ($upload_result['success']) {
+            $picture = $upload_result['filename'];
         } else {
-            $error = "Format file tidak didukung. Gunakan JPG, JPEG, PNG, atau GIF.";
+            $errors[] = $upload_result['message'];
         }
     }
     
-    if (empty($error) && !empty($title) && !empty($author) && !empty($category) && !empty($content)) {
-        if (tambahArtikel($title, $author, $category, $content, $picture)) {
-            $message = "Artikel berhasil ditambahkan!";
-            // Reset form
-            $title = $author = $category = $content = '';
+    if (empty($errors)) {
+        if (tambahArtikel($title, $current_author_id, $category, $content, $picture)) {
+            $_SESSION['message'] = "Artikel berhasil ditambahkan!";
+            $_SESSION['message_type'] = "success";
+            header("Location: dashboard.php");
+            exit();
         } else {
-            $error = "Gagal menambahkan artikel.";
+            $errors[] = "Gagal menambahkan artikel. Silakan coba lagi.";
         }
-    } elseif (empty($error)) {
-        $error = "Semua field harus diisi.";
     }
 }
 ?>
@@ -49,7 +136,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tambah Artikel - Madiun Blog</title>
+    <link rel="icon" href="/assets/img/head_logo.jpg" type="image/jpg">
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
     <style>
         .form-container {
             max-width: 800px;
@@ -124,6 +213,49 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         .btn-secondary:hover {
             background-color: #545b62;
         }
+        
+        .category-checkboxes {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .category-checkboxes label {
+            display: flex;
+            align-items: center;
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .category-checkboxes input[type="checkbox"] {
+            margin-right: 10px;
+        }
+        
+        .category-checkboxes label:hover {
+            background-color: #e9ecef;
+        }
+        
+        .category-checkboxes input[type="checkbox"]:checked + span {
+            font-weight: bold;
+            color: #007bff;
+        }
+        
+        .error-list {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        
+        .error-list ul {
+            margin: 0;
+            padding-left: 20px;
+        }
     </style>
 </head>
 <body>
@@ -133,28 +265,31 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     </header>
 
     <div class="form-container">
-        
+        <?php if (!empty($errors)): ?>
+            <div class="error-list">
+                <ul>
+                    <?php foreach ($errors as $error): ?>
+                        <li><?= htmlspecialchars($error) ?></li>
+                    <?php endforeach; ?>
+                </ul>
+            </div>
+        <?php endif; ?>
 
         <form method="POST" enctype="multipart/form-data">
             <div class="form-group">
                 <label for="title">Judul Artikel *</label>
-                <input type="text" id="title" name="title" value="<?= isset($title) ? htmlspecialchars($title) : '' ?>" required>
-            </div>
-
-            <div class="form-group">
-                <label for="author">Penulis *</label>
-                <input type="text" id="author" name="author" value="<?= isset($author) ? htmlspecialchars($author) : '' ?>" required>
+                <input type="text" id="title" name="title" value="<?= isset($title) ? htmlspecialchars($title) : '' ?>" required maxlength="255">
             </div>
 
             <div class="form-group">
                 <label for="category">Kategori *</label>
                 <select id="category" name="category" required>
-                    <option value="">Pilih Kategori</option>
-                    <option value="Kuliner" <?= (isset($category) && $category == 'Kuliner') ? 'selected' : '' ?>>Kuliner</option>
-                    <option value="Wisata" <?= (isset($category) && $category == 'Wisata') ? 'selected' : '' ?>>Wisata</option>
-                    <option value="Budaya" <?= (isset($category) && $category == 'Budaya') ? 'selected' : '' ?>>Budaya</option>
-                    <option value="Sejarah" <?= (isset($category) && $category == 'Sejarah') ? 'selected' : '' ?>>Sejarah</option>
-                    <option value="Tips" <?= (isset($category) && $category == 'Tips') ? 'selected' : '' ?>>Tips</option>
+                    <option value="">Pilih kategori artikel</option>
+                    <?php foreach ($categories as $category): ?>
+                        <option value="<?= $category['id'] ?>" <?= (isset($category) && $category == $category['id']) ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($category['name']) ?>
+                        </option>
+                    <?php endforeach; ?>
                 </select>
             </div>
 

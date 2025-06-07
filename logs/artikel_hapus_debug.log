@@ -1,0 +1,5 @@
+[2025-06-07 09:45:20] Proses Hapus: ID=15, Penulis=2, Status=Mulai, Pesan=
+[2025-06-07 09:45:20] Cek Penulis: ID=15, Penulis=2, Status=Proses, Pesan=Penulis artikel: 2
+[2025-06-07 09:45:20] Mulai Hapus: ID=15, Penulis=2, Status=Proses, Pesan=
+[2025-06-07 09:45:20] Hapus Artikel: ID=15, Penulis=2, Status=Sukses, Pesan=Baris terhapus: 1
+[2025-06-07 09:45:20] Hapus Gambar: ID=15, Penulis=2, Status=Sukses, Pesan=Path gambar: assets/img/1749289235_be1d667e123af6a8.jpg

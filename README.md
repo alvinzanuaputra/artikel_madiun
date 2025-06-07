@@ -1,101 +1,136 @@
-# Madiun Blog
+# Madiun Blog: Jelajahi Pesona Kota Pendekar
 
-A dynamic blog website dedicated to showcasing the beauty, culture, and culinary delights of Madiun City, Indonesia.
+Sebuah platform blog dinamis yang didedikasikan untuk mengeksplorasi keindahan, budaya, dan kelezatan kuliner Kota Madiun, Jawa Timur.
 
-## Description
+## Deskripsi Proyek
 
-Madiun Blog is a PHP-based web application that allows users to explore and share articles about Madiun City - known as "Kota Pendekar" (City of Warriors). The platform focuses on highlighting local culinary experiences, tourist attractions, cultural heritage, and interesting stories from this charming East Java city.
+Madiun Blog adalah aplikasi web berbasis PHP yang memungkinkan pengguna untuk menjelajahi dan berbagi artikel tentang Kota Madiun - yang dikenal sebagai "Kota Pendekar". Platform ini berfokus pada:
+- Pengalaman kuliner lokal
+- Atraksi wisata
+- Warisan budaya
+- Cerita menarik dari kota kecil yang memiliki spirit besar
 
-## Features
+## Fitur Utama
 
-- **Article Management**: View, create, edit, and delete blog articles
-- **Responsive Design**: Optimized for both desktop and mobile viewing
-- **Dynamic Content**: Articles loaded from a database with proper formatting
-- **Image Support**: Upload and display images with articles
-- **Article Preview**: See snippet previews with "Read More" functionality
-- **Fullscreen Article View**: Immersive reading experience with modal popup
-- **Categorization**: Organize articles by category
-- **Author Attribution**: Track article authors
-- **Publication Date**: Display when articles were published
+### Manajemen Artikel
+- Tambah, edit, dan hapus artikel dengan mudah
+- Dukungan unggah gambar
+- Kategorisasi artikel
+- Pelacakan penulis artikel
 
-## Screenshots
+### Desain & Pengalaman Pengguna
+- Desain responsif (mobile-friendly)
+- Pratinjau artikel dengan fitur "Baca Selengkapnya"
+- Tampilan artikel fullscreen dengan modal
+- Antarmuka yang bersih dan modern
 
-*[Insert screenshots of your application here]*
+### Keamanan & Manajemen
+- Sistem login penulis
+- Validasi kepemilikan artikel
+- Logging aktivitas
+- Penanganan error komprehensif
 
-## Requirements
+## Tangkapan Layar
 
-- PHP 7.0 or higher
-- MySQL/MariaDB
+*[Tambahkan tangkapan layar aplikasi di sini]*
+
+## Persyaratan Sistem
+
+- PHP 7.4 atau lebih tinggi
+- MySQL/MariaDB 5.7+
 - Web server (Apache/Nginx)
+- Dukungan PDO
 
-## Installation
+## Instalasi
 
-1. Clone this repository or download the ZIP file
-   ```
-   git clone https://github.com/yourusername/madiun-blog.git
-   ```
-
-2. Import the database structure
-   ```
-   mysql -u username -p database_name < database.sql
+1. Kloning repositori
+   ```bash
+   git clone https://github.com/SalsabilaAlya26/artikel_madiun.git
+   cd madiun-blog
    ```
 
-3. Configure your database connection in `functions.php`
-
-4. Ensure your web server has write permissions to the `img/` directory
-
-5. Access the website through your local server
-   ```
-   http://localhost/madiun-blog/
+2. Impor struktur database
+   ```bash
+   mysql -u username -p nama_database < assets/database/kota_madiun.sql
    ```
 
-## Project Structure
+3. Konfigurasi koneksi database
+   - Buka `koneksi.php`
+   - Sesuaikan pengaturan database Anda
+
+4. Pastikan izin tulis untuk direktori
+   ```bash
+   chmod -R 755 assets/img/
+   chmod -R 755 logs/
+   ```
+
+5. Jalankan melalui server lokal
+   ```
+   http://localhost/artikel_madiun
+   ```
+
+## Struktur Proyek
 
 ```
 madiun-blog/
-├── index.php          # Main blog page
-├── functions.php      # Core functions and database operations
-├── style.css          # Main stylesheet
-├── tambah_artikel.php # Add new article page
-├── edit_artikel.php   # Edit existing article page
-├── hapus_artikel.php  # Delete article functionality
-├── favicon.ico        # Website favicon
-└── img/               # Directory for article images
+├── index.php          # Halaman utama blog
+├── dashboard.php      # Dasbor penulis
+├── tambah_artikel.php # Halaman tambah artikel
+├── edit_artikel.php   # Halaman edit artikel
+├── hapus_artikel.php  # Fungsionalitas hapus artikel
+├── koneksi.php        # Konfigurasi koneksi database
+├── style.css          # Stylesheet utama
+├── assets/
+│   ├── img/           # Direktori gambar artikel
+│   └── database/      # File database
+└── logs/              # Direktori log aktivitas
 ```
 
-## Usage
+## Penggunaan
 
-### Viewing Articles
-- Visit the homepage to see all published articles
-- Click "Selengkapnya" (Read More) to view the full article in a modal window
-- Close the modal by clicking the X button, pressing ESC, or clicking outside the article
+### Membaca Artikel
+- Jelajahi artikel di halaman utama
+- Klik "Baca Selengkapnya" untuk membaca artikel lengkap
+- Tutup modal dengan tombol X, tekan ESC, atau klik di luar area artikel
 
-### Managing Articles
-- Click "+ Tambah Artikel" to create a new blog post
-- Use the "Edit" button to modify an existing article
-- Use the "Hapus" button to delete an article (with confirmation)
+### Manajemen Artikel (CRUD - CREATE READ UPDATE DELETE)
+- Gunakan "+ Tambah Artikel" untuk membuat artikel baru
+- Edit artikel dengan tombol "Edit"
+- Hapus artikel dengan tombol "Hapus" (dengan konfirmasi)
+- Read Informasi di setiap page.
 
-## Contributing
+## Teknologi yang Digunakan
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+- PHP Native
+- MySQL
+- PDO
+- HTML5
+- CSS3
+- JavaScript
+- Font Awesome (ikon)
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+## Lisensi
 
-## License
+*[Tambahkan informasi lisensi]*
 
-[Insert your chosen license here]
+## Pengakuan
 
-## Acknowledgments
-
-- Inspired by the beauty and culture of Madiun City
-- Thanks to all contributors and supporters of this project
+- Terinspirasi oleh keindahan dan budaya Kota Madiun
+- Terima kasih kepada semua kontributor dan pendukung proyek
 
 ## Pembuat
-- Salsabila Alya Putri Waluyo_230605110015
-- Pemrograman Web (C)
-- GitHub: SalsabilaAlya26
-- salsabillaalyaputri26@gmail.com# artikel_madiun
+
+- **Nama:** Salsabila Alya Putri Waluyo
+- **NIM:** 230605110015
+- **Kelas:** Pemrograman Web (C)
+- **Kontak:** 
+  - GitHub: SalsabilaAlya26
+  - Email: salsabillaalyaputri26@gmail.com
+
+## Catatan Pengembangan
+
+- Versi: 1.0.0
+- Status: Dalam pengembangan
+- Terakhir diperbarui: Juni 2024
+
+*Dibuat dengan ❤️ untuk Kota Madiun*

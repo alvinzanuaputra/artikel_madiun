@@ -1,35 +1,56 @@
 <?php
 session_start();
-require 'functions.php';
+require 'koneksi.php';
+
+function loginUser($login, $password) {
+    global $pdo;
+    // Cari user berdasarkan email atau nickname
+    $stmt = $pdo->prepare("SELECT * FROM author WHERE email = ? OR nickname = ?");
+    $stmt->execute([$login, $login]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if ($user && password_verify($password, $user['password'])) {
+        return $user;
+    }
+    return false;
+}
+
+function isLoggedIn() {
+    return isset($_SESSION['author_id']);
+}
 
 // Redirect jika sudah login
-if (isset($_SESSION['user_id'])) {
+if (isset($_SESSION['author_id'])) {
     header("Location: dashboard.php");
     exit();
 }
 
 $error = '';
+$login = ''; // Inisialisasi $login sebagai string kosong
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $username = trim($_POST['username']);
+    $login = trim($_POST['login']); // Ganti email menjadi login
     $password = $_POST['password'];
     
-    if (empty($username) || empty($password)) {
-        $error = "Username dan password harus diisi.";
+    if (empty($login) || empty($password)) {
+        $error = "Username/Email dan password harus diisi.";
     } else {
-        $user = loginUser($username, $password);
+        $user = loginUser($login, $password);
         if ($user) {
             // Set session
-            $_SESSION['user_id'] = $user['id'];
-            $_SESSION['username'] = $user['username'];
-            $_SESSION['full_name'] = $user['full_name'];
+            $_SESSION['author_id'] = $user['id'];
+            $_SESSION['nickname'] = $user['nickname'];
             $_SESSION['email'] = $user['email'];
             
-            // Redirect to dashboard
-            header("Location: dashboard.php");
+            // Tambahkan pesan toast
+            $_SESSION['toast_message'] = 'Login berhasil. Selamat datang, ' . htmlspecialchars($user['nickname']) . '!';
+            $_SESSION['toast_type'] = 'success';
+            
+            // Redirect to index
+            header("Location: index.php");
             exit();
         } else {
-            $error = "Username atau password salah.";
+            $error = "Username/Email atau password salah.";
         }
     }
 }
@@ -41,6 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Madiun Blog</title>
+    <link rel="icon" href="/assets/img/head_logo.jpg" type="image/jpg">
     <link rel="stylesheet" href="style.css">
     <style>
         .auth-container {
@@ -146,8 +168,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
         <form method="POST">
             <div class="form-group">
-                <label for="username">Username atau Email</label>
-                <input type="text" id="username" name="username" value="<?= isset($username) ? htmlspecialchars($username) : '' ?>" required>
+                <label for="login">Username/Email</label>
+                <input type="text" id="login" name="login" value="<?= isset($login) ? htmlspecialchars($login) : '' ?>" required>
             </div>
 
             <div class="form-group">
