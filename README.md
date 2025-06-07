@@ -46,7 +46,7 @@ Madiun Blog adalah aplikasi web berbasis PHP yang memungkinkan pengguna untuk me
 1. Kloning repositori
    ```bash
    git clone https://github.com/SalsabilaAlya26/artikel_madiun.git
-   cd madiun-blog
+   cd artikel_madiun
    ```
 
 2. Impor struktur database
