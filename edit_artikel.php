@@ -221,7 +221,7 @@ $current_categories = $article ? explode(',', $article['category_ids'] ?? '') : 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Edit Artikel - Madiun Blog</title>
-    <link rel="icon" href="/assets/img/head_logo.jpg" type="image/jpg">
+    <link rel="icon" href="./assets/img/head_logo.jpg" type="image/jpg">
     <link rel="stylesheet" href="style.css">
     <style>
         .form-container {

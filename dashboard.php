@@ -11,32 +11,52 @@ if (!isset($_SESSION['author_id'])) {
 $current_author_id = $_SESSION['author_id'];
 $current_author_nickname = $_SESSION['nickname'];
 
-function getAllArticles() {
+function getAllArticles($search = '', $category = '')
+{
     global $pdo, $current_author_id;
-    
+
     // Debugging
     if (!isset($current_author_id)) {
         die("Error: Author ID not set");
     }
-    
-    $stmt = $pdo->prepare("SELECT a.id, a.date, a.title, a.content, a.picture, 
-                         (SELECT GROUP_CONCAT(DISTINCT au.nickname) 
-                          FROM article_author aa2 
-                          JOIN author au ON aa2.author_id = au.id 
-                          WHERE aa2.article_id = a.id) as author_nickname, 
-                         GROUP_CONCAT(DISTINCT c.name SEPARATOR ', ') as category_names
-                         FROM article a
-                         JOIN article_author aa ON a.id = aa.article_id
-                         LEFT JOIN article_category ac ON a.id = ac.article_id
-                         LEFT JOIN category c ON ac.category_id = c.id
-                         WHERE aa.author_id = ?
-                         GROUP BY a.id, a.date, a.title, a.content, a.picture
-                         ORDER BY a.date DESC");
-    $stmt->execute([$current_author_id]);
+
+    $whereConditions = ["aa.author_id = ?"];
+    $params = [$current_author_id];
+
+    // Tambahkan kondisi pencarian
+    if (!empty($search)) {
+        $whereConditions[] = "(a.title LIKE ? OR a.content LIKE ?)";
+        $params[] = "%$search%";
+        $params[] = "%$search%";
+    }
+
+    // Tambahkan kondisi kategori
+    if (!empty($category) && $category !== 'semua') {
+        $whereConditions[] = "c.name = ?";
+        $params[] = $category;
+    }
+
+    $sql = "SELECT a.id, a.date, a.title, a.content, a.picture, 
+            (SELECT GROUP_CONCAT(DISTINCT au.nickname) 
+             FROM article_author aa2 
+             JOIN author au ON aa2.author_id = au.id 
+             WHERE aa2.article_id = a.id) as author_nickname, 
+            GROUP_CONCAT(DISTINCT c.name SEPARATOR ', ') as category_names
+            FROM article a
+            JOIN article_author aa ON a.id = aa.article_id
+            LEFT JOIN article_category ac ON a.id = ac.article_id
+            LEFT JOIN category c ON ac.category_id = c.id
+            WHERE " . implode(" AND ", $whereConditions) . "
+            GROUP BY a.id, a.date, a.title, a.content, a.picture
+            ORDER BY a.date DESC";
+
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-function getArticleById($id) {
+function getArticleById($id)
+{
     global $pdo;
     $stmt = $pdo->prepare("SELECT a.*, au.nickname as author_nickname, 
                          GROUP_CONCAT(c.name SEPARATOR ', ') as category_names
@@ -51,26 +71,44 @@ function getArticleById($id) {
     return $stmt->fetch(PDO::FETCH_ASSOC);
 }
 
-function isLoggedIn() {
+function isLoggedIn()
+{
     return isset($_SESSION['author_id']);
 }
 
-function sanitizeInput($data) {
+function sanitizeInput($data)
+{
     return htmlspecialchars(strip_tags(trim($data)));
 }
 
-function formatDate($date) {
+function formatDate($date)
+{
     return date("d F Y", strtotime($date));
 }
 
-function truncateText($text, $length = 200) {
+function truncateText($text, $length = 200)
+{
     if (strlen($text) <= $length) {
         return $text;
     }
     return substr($text, 0, $length) . '...';
 }
 
-$articles = getAllArticles();
+// Fungsi untuk mendapatkan semua kategori
+function getAllCategories()
+{
+    global $pdo;
+    $stmt = $pdo->query("SELECT DISTINCT name FROM category ORDER BY name ASC");
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+// Mendapatkan parameter pencarian dan kategori
+$search = isset($_GET['search']) ? trim($_GET['search']) : '';
+$selectedCategory = isset($_GET['category']) ? trim($_GET['category']) : '';
+
+// Mendapatkan artikel berdasarkan filter
+$articles = getAllArticles($search, $selectedCategory);
+$categories = getAllCategories();
 
 /* jika query() mengembalikan null, ubah ke array kosong supaya aman */
 if (!is_array($articles)) {
@@ -80,6 +118,7 @@ if (!is_array($articles)) {
 
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -96,27 +135,27 @@ if (!is_array($articles)) {
             padding: 20px;
             background: #fff;
             border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
             flex-wrap: wrap;
             gap: 15px;
         }
-        
+
         .welcome-info h2 {
             margin: 0;
             color: #333;
         }
-        
+
         .welcome-info p {
             margin: 5px 0 0 0;
             color: #666;
         }
-        
+
         .dashboard-actions {
             display: flex;
             gap: 10px;
             flex-wrap: wrap;
         }
-        
+
         .btn-logout {
             background-color: #dc3545;
             color: white;
@@ -126,79 +165,79 @@ if (!is_array($articles)) {
             border: none;
             cursor: pointer;
         }
-        
+
         .btn-logout:hover {
             background-color: #c82333;
         }
-        
+
         .stats-container {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 20px;
             margin-bottom: 30px;
         }
-        
+
         .stat-card {
             background: #fff;
             padding: 20px;
             border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
             text-align: center;
         }
-        
+
         .stat-number {
             font-size: 2em;
             font-weight: bold;
             color: #e74c3c;
             margin-bottom: 5px;
         }
-        
+
         .stat-label {
             color: #666;
             font-size: 0.9em;
         }
-        
+
         .alert {
             padding: 15px;
             margin-bottom: 20px;
             border-radius: 5px;
         }
-        
+
         .alert-success {
             background-color: #d4edda;
             border-color: #c3e6cb;
             color: #155724;
         }
-        
+
         .alert-error {
             background-color: #f8d7da;
             border-color: #f5c6cb;
             color: #721c24;
         }
-        
+
         .articles-table {
             background: #fff;
             border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
             overflow: hidden;
         }
-        
+
         .table-header {
             background: #f8f9fa;
             padding: 20px;
             border-bottom: 1px solid #eee;
         }
-        
+
         .table-header h3 {
             margin: 0;
             color: #333;
         }
-        
+
         table {
             width: 100%;
             border-collapse: collapse;
         }
-        
+
         th {
             background: #f8f9fa;
             padding: 12px;
@@ -207,34 +246,34 @@ if (!is_array($articles)) {
             font-weight: bold;
             color: #333;
         }
-        
+
         td {
             padding: 12px;
             border-bottom: 1px solid #eee;
             vertical-align: top;
         }
-        
+
         tr:hover {
             background-color: #f8f9fa;
         }
-        
+
         .article-title {
             font-weight: bold;
             max-width: 300px;
             word-wrap: break-word;
         }
-        
+
         .article-meta {
             font-size: 0.9em;
             color: #666;
         }
-        
+
         .article-actions {
             display: flex;
             gap: 8px;
             flex-wrap: wrap;
         }
-        
+
         .action-btn {
             padding: 5px 10px;
             text-decoration: none;
@@ -243,60 +282,65 @@ if (!is_array($articles)) {
             border: none;
             cursor: pointer;
         }
-        
+
         .btn-edit {
             background-color: #28a745;
             color: white;
         }
-        
+
         .btn-delete {
             background-color: #dc3545;
             color: white;
         }
-        
+
         .btn-view {
             background-color: #007bff;
             color: white;
         }
-        
+
         .action-btn:hover {
             opacity: 0.8;
         }
-        
+
         .empty-state {
             text-align: center;
             padding: 40px;
             color: #666;
         }
-        
+
         @media (max-width: 768px) {
             .dashboard-header {
                 flex-direction: column;
                 text-align: center;
             }
-            
-            table, thead, tbody, th, td, tr {
+
+            table,
+            thead,
+            tbody,
+            th,
+            td,
+            tr {
                 display: block;
             }
-            
+
             thead tr {
                 position: absolute;
                 top: -9999px;
                 left: -9999px;
             }
-            
+
             tr {
                 border: 1px solid #ccc;
                 margin-bottom: 10px;
                 padding: 10px;
             }
-            
+
             td {
                 border: none;
                 position: relative;
                 padding-left: 50%;
             }
-            
+
             td:before {
                 content: attr(data-label) ": ";
                 position: absolute;
@@ -307,27 +351,145 @@ if (!is_array($articles)) {
                 font-weight: bold;
             }
         }
-        
+
         .article-image-cell {
             text-align: center;
             vertical-align: middle !important;
         }
-        
+
         .article-image-cell .no-image {
             color: #666;
             font-style: italic;
         }
-        
+
         .article-image-cell img {
             transition: transform 0.3s ease;
         }
-        
+
         .article-image-cell img:hover {
             transform: scale(1.1);
             cursor: pointer;
         }
+
+        .search-filter-section {
+            background: #fff;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+
+        .search-filter-container {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 250px;
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 12px 45px 12px 15px;
+            border: 2px solid #ddd;
+            border-radius: 25px;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.3s ease;
+        }
+
+        .search-input:focus {
+            border-color: #e74c3c;
+        }
+
+        .search-btn {
+            position: absolute;
+            right: 5px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 35px;
+            height: 35px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.3s ease;
+        }
+
+        .search-btn:hover {
+            background: #c0392b;
+        }
+
+        .category-filter {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .category-select {
+            padding: 10px 15px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            background: white;
+            cursor: pointer;
+            outline: none;
+            min-width: 120px;
+        }
+
+        .category-select:focus {
+            border-color: #e74c3c;
+        }
+
+        .clear-filters {
+            padding: 10px 20px;
+            background: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: background-color 0.3s ease;
+        }
+
+        .clear-filters:hover {
+            background: #5a6268;
+        }
+
+        .results-info {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            border-left: 4px solid #e74c3c;
+        }
+
+        .results-info h3 {
+            margin: 0 0 5px 0;
+            color: #333;
+        }
+
+        .results-info p {
+            margin: 0;
+            color: #666;
+            font-size: 14px;
+        }
     </style>
 </head>
+
 <body>
     <div class="dashboard-header" style="background-color: #f5c6cb;">
         <div class="welcome-info">
@@ -340,6 +502,57 @@ if (!is_array($articles)) {
             <a href="logout.php" class="btn" style="background-color: #dc3545; color: white;"><i class="fas fa-sign-out-alt"></i> Logout</a>
         </div>
     </div>
+
+    <!-- Search & Filter Section -->
+    <div class="search-filter-section">
+        <form method="GET" action="" class="search-filter-container">
+            <div class="search-box">
+                <input type="text"
+                    name="search"
+                    class="search-input"
+                    placeholder="Cari artikel, judul, konten..."
+                    value="<?= htmlspecialchars($search) ?>"
+                    autocomplete="off">
+                <button type="submit" class="search-btn">
+                    <i class="fas fa-search"></i>
+                </button>
+            </div>
+
+            <div class="category-filter">
+                <select name="category" class="category-select" onchange="this.form.submit()">
+                    <option value="">Semua Kategori</option>
+                    <?php foreach ($categories as $category): ?>
+                        <option value="<?= htmlspecialchars($category['name']) ?>"
+                            <?= $selectedCategory === $category['name'] ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($category['name']) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+
+                <?php if (!empty($search) || !empty($selectedCategory)): ?>
+                    <a href="dashboard.php" class="clear-filters">
+                        <i class="fas fa-times"></i> Hapus Filter
+                    </a>
+                <?php endif; ?>
+            </div>
+        </form>
+    </div>
+
+    <!-- Results Info -->
+    <?php if (!empty($search) || !empty($selectedCategory)): ?>
+        <div class="results-info">
+            <h3>
+                <?php if (!empty($search) && !empty($selectedCategory)): ?>
+                    Hasil pencarian "<?= htmlspecialchars($search) ?>" dalam kategori "<?= htmlspecialchars($selectedCategory) ?>"
+                <?php elseif (!empty($search)): ?>
+                    Hasil pencarian "<?= htmlspecialchars($search) ?>"
+                <?php elseif (!empty($selectedCategory)): ?>
+                    Artikel kategori "<?= htmlspecialchars($selectedCategory) ?>"
+                <?php endif; ?>
+            </h3>
+            <p>Ditemukan <?= count($articles) ?> artikel</p>
+        </div>
+    <?php endif; ?>
 
     <div id="toastContainer" style="
         position: fixed; 
@@ -354,19 +567,27 @@ if (!is_array($articles)) {
             <div class="stat-label">Total Artikel</div>
         </div>
         <div class="stat-card">
-            <div class="stat-number"><?= count(array_filter($articles, function($a) { return strpos($a['category_names'], 'KULINER') !== false; })) ?></div>
+            <div class="stat-number"><?= count(array_filter($articles, function ($a) {
+                                            return strpos($a['category_names'], 'KULINER') !== false;
+                                        })) ?></div>
             <div class="stat-label">Artikel Kuliner</div>
         </div>
         <div class="stat-card">
-            <div class="stat-number"><?= count(array_filter($articles, function($a) { return strpos($a['category_names'], 'BUDAYA') !== false; })) ?></div>
+            <div class="stat-number"><?= count(array_filter($articles, function ($a) {
+                                            return strpos($a['category_names'], 'BUDAYA') !== false;
+                                        })) ?></div>
             <div class="stat-label">Artikel Budaya</div>
         </div>
         <div class="stat-card">
-            <div class="stat-number"><?= count(array_filter($articles, function($a) { return strpos($a['category_names'], 'MODERNISASI') !== false; })) ?></div>
+            <div class="stat-number"><?= count(array_filter($articles, function ($a) {
+                                            return strpos($a['category_names'], 'MODERNISASI') !== false;
+                                        })) ?></div>
             <div class="stat-label">Artikel Modernisasi</div>
         </div>
         <div class="stat-card">
-            <div class="stat-number"><?= count(array_filter($articles, function($a) { return strpos($a['category_names'], 'TOKOH INSPIRATIF') !== false; })) ?></div>
+            <div class="stat-number"><?= count(array_filter($articles, function ($a) {
+                                            return strpos($a['category_names'], 'TOKOH INSPIRATIF') !== false;
+                                        })) ?></div>
             <div class="stat-label">Artikel Tokoh Inspiratif</div>
         </div>
     </div>
@@ -375,7 +596,7 @@ if (!is_array($articles)) {
         <div class="table-header">
             <h3>Kelola Artikel</h3>
         </div>
-        
+
         <?php if (!empty($articles)): ?>
             <table>
                 <thead>
@@ -393,9 +614,9 @@ if (!is_array($articles)) {
                         <tr>
                             <td data-label="Gambar" class="article-image-cell">
                                 <?php if (!empty($article['picture'])): ?>
-                                    <img src="/assets/img/<?= htmlspecialchars($article['picture']) ?>" 
-                                         alt="Gambar <?= htmlspecialchars($article['title']) ?>" 
-                                         style="max-width: 300px; max-height: 200px; object-fit: cover; border-radius: 5px;">
+                                    <img src="./assets/img/<?= htmlspecialchars($article['picture']) ?>"
+                                        alt="Gambar <?= htmlspecialchars($article['title']) ?>"
+                                        style="max-width: 300px; max-height: 200px; object-fit: cover; border-radius: 5px;">
                                 <?php else: ?>
                                     <span class="no-image">Tidak ada gambar</span>
                                 <?php endif; ?>
@@ -411,9 +632,9 @@ if (!is_array($articles)) {
                             </td>
                             <td data-label="Tanggal"><?= date("d/m/Y", strtotime($article['date'])) ?></td>
                             <td data-label="Penulis">
-                                <?= !empty($article['author_nickname']) 
-                                    ? htmlspecialchars($article['author_nickname']) 
-                                    : 'Penulis Tidak Diketahui' 
+                                <?= !empty($article['author_nickname'])
+                                    ? htmlspecialchars($article['author_nickname'])
+                                    : 'Penulis Tidak Diketahui'
                                 ?>
                             </td>
                             <td data-label="Aksi">
@@ -423,15 +644,15 @@ if (!is_array($articles)) {
                                         <input type="hidden" name="id" value="<?= $article['id'] ?>">
                                         <button type="submit" class="action-btn btn-edit">Edit</button>
                                     </form>
-                                    <form action="hapus_artikel.php" method="POST" style="display: inline;" 
-                                          onsubmit="return confirmDelete('<?= htmlspecialchars(addslashes($article['title'])) ?>')">
+                                    <form action="hapus_artikel.php" method="POST" style="display: inline;"
+                                        onsubmit="return confirmDelete('<?= htmlspecialchars(addslashes($article['title'])) ?>')">
                                         <input type="hidden" name="id" value="<?= $article['id'] ?>">
                                         <button type="submit" class="action-btn btn-delete">Hapus</button>
                                     </form>
                                 </div>
                             </td>
                         </tr>
-                        
+
                         <!-- Modal untuk preview artikel -->
                         <div id="fullscreen-<?= $article['id'] ?>" class="fullscreen-article" style="display: none;">
                             <div class="fullscreen-content">
@@ -439,10 +660,10 @@ if (!is_array($articles)) {
                                 <h2><?= htmlspecialchars($article['title']) ?></h2>
                                 <p class="meta">
                                     Dipublikasikan: <?= date("d F Y", strtotime($article['date'])) ?> |
-                                    Penulis: <?= !empty($article['author_nickname']) 
-                                        ? htmlspecialchars($article['author_nickname']) 
-                                        : 'Penulis Tidak Diketahui' 
-                                    ?> |
+                                    Penulis: <?= !empty($article['author_nickname'])
+                                                    ? htmlspecialchars($article['author_nickname'])
+                                                    : 'Penulis Tidak Diketahui'
+                                                ?> |
                                     Kategori: <?= htmlspecialchars($article['category_names']) ?>
                                 </p>
                                 <?php if (!empty($article['picture'])): ?>
@@ -479,7 +700,7 @@ if (!is_array($articles)) {
             document.getElementById('fullscreen-' + id).style.display = 'none';
             document.body.style.overflow = 'auto';
         }
-        
+
         // Close modal when clicking outside content
         document.addEventListener('DOMContentLoaded', function() {
             const fullscreenArticles = document.querySelectorAll('.fullscreen-article');
@@ -491,7 +712,7 @@ if (!is_array($articles)) {
                     }
                 });
             });
-            
+
             // Close modal with Escape key
             document.addEventListener('keydown', function(e) {
                 if (e.key === 'Escape') {
@@ -532,7 +753,7 @@ if (!is_array($articles)) {
             // Sembunyikan toast setelah 3 detik
             setTimeout(() => {
                 toast.style.opacity = '0';
-                
+
                 // Hapus dari DOM setelah animasi
                 setTimeout(() => {
                     container.removeChild(toast);
@@ -541,11 +762,11 @@ if (!is_array($articles)) {
         }
 
         // Cek apakah ada pesan dari session
-        <?php 
+        <?php
         if (isset($_SESSION['message']) && isset($_SESSION['message_type'])) {
             $message = htmlspecialchars($_SESSION['message']);
             $type = htmlspecialchars($_SESSION['message_type']);
-            
+
             // Hapus pesan dari session setelah dibaca
             unset($_SESSION['message']);
             unset($_SESSION['message_type']);
@@ -651,13 +872,27 @@ if (!is_array($articles)) {
                     e.preventDefault();
                     const articleTitle = this.querySelector('input[name="id"]').closest('tr').querySelector('.article-title').textContent.trim();
                     const confirmed = await confirmDelete(articleTitle);
-                    
+
                     if (confirmed) {
                         this.submit();
                     }
                 });
             });
         });
+
+        // Auto-submit search form on Enter
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchInput = document.querySelector('.search-input');
+            if (searchInput) {
+                searchInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        this.closest('form').submit();
+                    }
+                });
+            }
+        });
     </script>
 </body>
+
 </html>
