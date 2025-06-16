@@ -1,136 +1,213 @@
-# Madiun Blog: Jelajahi Pesona Kota Pendekar
-
-Sebuah platform blog dinamis yang didedikasikan untuk mengeksplorasi keindahan, budaya, dan kelezatan kuliner Kota Madiun, Jawa Timur.
+# Blog Artikel Kota Madiun
 
 ## Deskripsi Proyek
+Website blog artikel tentang Kota Madiun yang memungkinkan pengunjung untuk membaca artikel dan penulis untuk mengelola konten melalui sistem manajemen konten (CMS) yang terintegrasi.
 
-Madiun Blog adalah aplikasi web berbasis PHP yang memungkinkan pengguna untuk menjelajahi dan berbagi artikel tentang Kota Madiun - yang dikenal sebagai "Kota Pendekar". Platform ini berfokus pada:
-- Pengalaman kuliner lokal
-- Atraksi wisata
-- Warisan budaya
-- Cerita menarik dari kota kecil yang memiliki spirit besar
+## 🌐 Link Demo
+- **URL Blog Online**: [http://salsabila-artikel-madiun.kesug.com](http://salsabila-artikel-madiun.kesug.com)
+- **Repository GitHub**: [https://github.com/SalsabilaAlya26/project-uas-artikel-pemweb-kota-madiun](https://github.com/SalsabilaAlya26/project-uas-artikel-pemweb-kota-madiun)
 
-## Fitur Utama
+## 🚀 Fitur Utama
 
-### Manajemen Artikel
-- Tambah, edit, dan hapus artikel dengan mudah
-- Dukungan unggah gambar
-- Kategorisasi artikel
-- Pelacakan penulis artikel
+### 1. Halaman Pengunjung
+Pengunjung dapat mengakses website dalam mode publik untuk membaca artikel.
 
-### Desain & Pengalaman Pengguna
-- Desain responsif (mobile-friendly)
-- Pratinjau artikel dengan fitur "Baca Selengkapnya"
-- Tampilan artikel fullscreen dengan modal
-- Antarmuka yang bersih dan modern
+#### a. Homepage
+- **Header**: Menampilkan tema/judul blog
 
-### Keamanan & Manajemen
-- Sistem login penulis
-- Validasi kepemilikan artikel
-- Logging aktivitas
-- Penanganan error komprehensif
+    ![alt text](/assets/document/image.png)
 
-## Tangkapan Layar
+- **Navigasi**: Menu navigasi utama untuk berpindah halaman
 
-*[Tambahkan tangkapan layar aplikasi di sini]*
+    ![alt text](/assets/document/image-1.png)
 
-## Persyaratan Sistem
+    ![alt text](/assets/document/image-2.png)
 
-- PHP 7.4 atau lebih tinggi
-- MySQL/MariaDB 5.7+
-- Web server (Apache/Nginx)
-- Dukungan PDO
+- **Konten Utama** (Bagian Kiri): Menampilkan 7 artikel terbaru yang sudah tersorting berdasarkan `article_id` secara otomatis
 
-## Instalasi
+    ![alt text](/assets/document/image-3.png)
 
-1. Kloning repositori
-   ```bash
-   git clone https://github.com/SalsabilaAlya26/artikel_madiun.git
-   cd artikel_madiun
-   ```
+- **Sidebar** (Bagian Kanan): 
+  - Fitur pencarian artikel
+  - Menu kategori
 
-2. Impor struktur database
-   ```bash
-   mysql -u username -p nama_database < assets/database/kota_madiun.sql
-   ```
+    ![alt text](/assets/document/image-4.png)
 
-3. Konfigurasi koneksi database
-   - Buka `koneksi.php`
-   - Sesuaikan pengaturan database Anda
+  - Informasi "Tentang ITU"
 
-4. Pastikan izin tulis untuk direktori
-   ```bash
-   chmod -R 755 assets/img/
-   chmod -R 755 logs/
-   ```
+    ![alt text](/assets/document/image-5.png)
+    ![alt text](/assets/document/image-6.png)
 
-5. Jalankan melalui server lokal
-   ```
-   http://localhost/artikel_madiun
-   ```
+- **Footer**: Informasi copyright
 
-## Struktur Proyek
+    ![alt text](/assets/document/image-7.png)
 
-```
-madiun-blog/
-├── index.php          # Halaman utama blog
-├── dashboard.php      # Dasbor penulis
-├── tambah_artikel.php # Halaman tambah artikel
-├── edit_artikel.php   # Halaman edit artikel
-├── hapus_artikel.php  # Fungsionalitas hapus artikel
-├── koneksi.php        # Konfigurasi koneksi database
-├── style.css          # Stylesheet utama
-├── assets/
-│   ├── img/           # Direktori gambar artikel
-│   └── database/      # File database
-└── logs/              # Direktori log aktivitas
-```
+#### b. Halaman Detail Artikel
+- **Navigasi**: Menu navigasi konsisten
+- **Konten Utama** (Bagian Kiri): Detail lengkap artikel yang dipilih
+- **Sidebar** (Bagian Kanan):
+  - Fitur pencarian
+  - Daftar judul artikel terkait
+- **Footer**: Informasi copyright
 
-## Penggunaan
+    ![alt text](/assets/document/image-8.png)
 
-### Membaca Artikel
-- Jelajahi artikel di halaman utama
-- Klik "Baca Selengkapnya" untuk membaca artikel lengkap
-- Tutup modal dengan tombol X, tekan ESC, atau klik di luar area artikel
+#### c. Halaman Artikel per Kategori
+- **Header**: Tema/judul blog
+- **Navigasi**: Menu navigasi utama
+- **Konten Utama** (Bagian Kiri): Menampilkan artikel berdasarkan kategori yang dipilih
+- **Sidebar** (Bagian Kanan):
+  - Fitur pencarian
+  - Menu kategori
+  - Informasi "Tentang"
+- **Footer**: Informasi copyright
 
-### Manajemen Artikel (CRUD - CREATE READ UPDATE DELETE)
-- Gunakan "+ Tambah Artikel" untuk membuat artikel baru
-- Edit artikel dengan tombol "Edit"
-- Hapus artikel dengan tombol "Hapus" (dengan konfirmasi)
-- Read Informasi di setiap page.
+    ![alt text](/assets/document/image-9.png)
 
-## Teknologi yang Digunakan
+### 2. Sistem Pengelolaan Konten
 
-- PHP Native
-- MySQL
-- PDO
+#### a. Autentikasi
+- **Login System**: Username dan password untuk penulis/author
+- **Mode Pengunjung**: Akses tanpa login (mode logout)
+
+    ![alt text](/assets/document/image-10.png)
+
+- **Mode Admin**: Akses setelah login sebagai penulis/author
+
+    ![alt text](/assets/document/image-11.png)
+
+#### b. CRUD Operations
+
+Jadi dalam sistem ini saat sudah login session akan disimpan dalam browser dan cookies akan menyimpan session selamanya sampai user/penulis logout. Saat melakukan operasi CRUD adalah user/penulis yang login sekarang bisa dilihat pada database berikut : 
+
+[Database Kota Madiun Local](/assets/database/kota_madiun.sql)
+
+Sistem mendukung operasi lengkap untuk:
+
+**Penulis (Authors)**
+- Create : Register penulis
+- Read: Melihat penulis yaitu kita yang login saat ini
+
+**Kategori**
+- Create: Menambah kategori baru
+- Read: Melihat daftar kategori
+- Update: Mengedit kategori
+- Delete: Menghapus kategori
+
+**Artikel**
+- **CREATE**: Halaman tambah artikel dengan form lengkap
+- **READ**: Menampilkan artikel dari database MySQL
+- **UPDATE**: Halaman edit artikel untuk modifikasi konten
+- **DELETE**: Fitur hapus artikel dengan konfirmasi
+
+**Capture :**
+- CREATE
+
+    ![alt text](/assets/document/image-13.png)
+
+- READ
+
+`Sudah sesuai fetching data dari database server php dengan koneksi MySQL`
+
+-UPDATE
+
+  ![alt text](/assets/document/image-14.png)
+
+- DELETE
+
+    ![alt text](/assets/document/image-15.png)
+
+#### c. Logout
+- Fitur logout untuk mengakhiri sesi penulis/author
+- Kembali ke mode pengunjung setelah logout
+
+    ![alt text](/assets/document/image-16.png)
+
+### 3. Fitur Tambahan
+- **Interactive Toaster**: Notifikasi inter12345678 untuk feedback user actions
+
+    ![alt text](/assets/document/image-12.png)
+
+- **Responsive Design**: Tampilan yang optimal di berbagai perangkat
+- **Search Functionality**: Pencarian artikel berdasarkan kata kunci
+
+    ![alt text](/assets/document/image-4.png)
+
+## 👥 Data Penulis (Authors)
+
+Website ini memiliki 7 penulis terdaftar:
+
+| ID | Nama | Email | Password |
+|---|---|---|---|
+| 1 | SALSABILA ALYA PUTRI WALUYO | salsabila@gmail.com | 12345678 |
+| 2 | ALVIN ZANUA PUTRA | alvinzanuaputra@gmail.com | 12345678 |
+| 3 | CANTIKA MELATI | cantikamelati@gmail.com | 12345678 |
+| 4 | ABDI RAMADHAN | abdiramadhan@gmail.com | 12345678 |
+| 5 | FERDIANSYAH | ferdiansyah@gmail.com | 12345678 |
+| 6 | TIMOTHY ANTONIO | timothy@gmail.com | 12345678 |
+| 8 | SABIL | sabil@gmail.com | 12345678 |
+
+## 🔐 Kredensial Login
+
+### Username & Password
+Semua penulis menggunakan password yang sama:
+- **Password**: `12345678`
+- **Username**: Gunakan email yang sesuai dari tabel penulis di atas
+
+### Contoh Login:
+- **Email**: `salsabila@gmail.com` atau 
+- **Username**: `SALSABILA ALYA PUTRI WALUYO`
+- **Password**: `12345678`
+
+## 🛠️ Teknologi yang Digunakan
+
+### Frontend
 - HTML5
 - CSS3
 - JavaScript
-- Font Awesome (ikon)
+- Bootstrap (untuk responsive design)
 
-## Lisensi
+### Backend
+- PHP
+- MySQL Database
+- Session Management
 
-*[Tambahkan informasi lisensi]*
 
-## Pengakuan
 
-- Terinspirasi oleh keindahan dan budaya Kota Madiun
-- Terima kasih kepada semua kontributor dan pendukung proyek
 
-## Pembuat
 
-- **Nama:** Salsabila Alya Putri Waluyo
-- **NIM:** 230605110015
-- **Kelas:** Pemrograman Web (C)
-- **Kontak:** 
-  - GitHub: SalsabilaAlya26
-  - Email: salsabillaalyaputri26@gmail.com
 
-## Catatan Pengembangan
 
-- Versi: 1.0.0
-- Status: Dalam pengembangan
-- Terakhir diperbarui: Juni 2024
 
-*Dibuat dengan ❤️ untuk Kota Madiun*
+```
+
+Penjelasan halaman index.php :
+Toaster muncul ketika ada $_SESSION['toast_message'], lalu dihapus setelah ditampilkan.
+
+Warna pink agak gelap #db7093, teks hitam.
+
+Tombol keluar pakai PHP display: <?= isLoggedIn() ? 'block' : 'none' ?>
+
+Semua tombol punya logika POST tersendiri di atas.
+
+bagian tombol 1, Lihat Semua Artikel, 
+munculkan echo toaster ketika user klik tombol ini, jika table author belum masuk sebagai penulis atau pengunjung arahkan ke page login.php
+
+
+bagian tombol 2, Portal penulis
+jika sudah login sebagai penulis = Portal Penulis, mengarah ke page dashboard.php
+jika sudah login sebagai pengunjung = Portal Pengunjung, mengarah ke main.php
+jika belum login sebagai apapun = Masuk
+
+bagian tombol 3, Keluar
+jika sudah login munculkan tombol keluar
+jika belum login hilangkan tombol Keluar
+
+
+
+poin tambahan : warna toaster pink agak gelap, tulisan hitam
+echo dalam toaster 
+jika user atau author sudah login sebagai penulis, munculkan toaster "Anda sudah masuk sebagai penulis"
+jika user atau author sudah login sebagai pengunjung, munculkan toaster "Anda sudah masuk sebagai pengunjung"
+jika user belum login munculkan pesan "Masuk untuk melihat artikel atau menulis artikel"
+```

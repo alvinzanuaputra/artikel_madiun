@@ -1,591 +1,317 @@
 <?php
 session_start();
-require 'koneksi.php';
 
-// Fungsi untuk memeriksa status login
-function isLoggedIn() {
-    return isset($_SESSION['author_id']);
-}
+include 'koneksi.php';
 
-// Fungsi untuk mendapatkan semua kategori
-function getAllCategories() {
-    global $pdo;
-    $stmt = $pdo->query("SELECT DISTINCT name FROM category ORDER BY name ASC");
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
-}
 
-// Fungsi untuk mendapatkan artikel dengan filter pencarian dan kategori
-function getFilteredArticles($search = '', $category = '') {
-    global $pdo;
-    
-    $whereConditions = [];
-    $params = [];
-    
-    // Base query
-    $sql = "SELECT a.id, a.date, a.title, a.content, a.picture, 
-            GROUP_CONCAT(DISTINCT au.nickname) as author_nickname, 
-            GROUP_CONCAT(DISTINCT c.name SEPARATOR ', ') as category_names
-            FROM article a
-            JOIN article_author aa ON a.id = aa.article_id
-            JOIN author au ON aa.author_id = au.id
-            LEFT JOIN article_category ac ON a.id = ac.article_id
-            LEFT JOIN category c ON ac.category_id = c.id";
-    
-    // Add search condition
-    if (!empty($search)) {
-        $whereConditions[] = "(a.title LIKE ? OR a.content LIKE ?)";
-        $params[] = "%$search%";
-        $params[] = "%$search%";
+// Cek status login
+$isLoggedIn = isset($_SESSION['author_id']) && !empty($_SESSION['author_id']);
+$userNickname = $isLoggedIn && isset($_SESSION['nickname']) ? $_SESSION['nickname'] : null;
+
+// Ambil role dari database jika belum ada di session
+$userRole = null;
+if ($isLoggedIn) {
+    if (isset($_SESSION['role'])) {
+        $userRole = $_SESSION['role'];
+    } else {
+        // Query ke database untuk mendapatkan role
+        $stmt = $koneksi->prepare("SELECT role FROM author WHERE id = ?");
+        if ($stmt) {
+            $stmt->bind_param("i", $_SESSION['author_id']);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            if ($row = $result->fetch_assoc()) {
+                $userRole = $row['role'];
+                $_SESSION['role'] = $userRole; // Simpan ke session untuk penggunaan selanjutnya
+            } else {
+                $userRole = 'pengunjung'; // Default jika user tidak ditemukan
+            }
+            $stmt->close();
+        } else {
+            $userRole = 'pengunjung'; // Default jika query gagal
+        }
     }
-    
-    // Add category condition
-    if (!empty($category) && $category !== 'semua') {
-        $whereConditions[] = "c.name = ?";
-        $params[] = $category;
-    }
-    
-    // Combine conditions
-    if (!empty($whereConditions)) {
-        $sql .= " WHERE " . implode(" AND ", $whereConditions);
-    }
-    
-    $sql .= " GROUP BY a.id, a.date, a.title, a.content, a.picture
-              ORDER BY a.date DESC";
-    
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute($params);
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-// Mendapatkan parameter pencarian dan kategori
-$search = isset($_GET['search']) ? trim($_GET['search']) : '';
-$selectedCategory = isset($_GET['category']) ? trim($_GET['category']) : '';
+// // Debug sementara (hapus setelah selesai debug)
+// error_reporting(E_ALL);
+// ini_set('display_errors', 1);
 
-// Mendapatkan artikel berdasarkan filter
-$articles = getFilteredArticles($search, $selectedCategory);
-$categories = getAllCategories();
+// // Debug session (hapus setelah selesai debug)
+// echo "<pre>";
+// echo "SESSION: ";
+// print_r($_SESSION);
+// echo "isLoggedIn: " . ($isLoggedIn ? 'true' : 'false') . "\n";
+// echo "userRole: " . $userRole . "\n";
+// echo "userNickname: " . $userNickname . "\n";
+// echo "author_id: " . (isset($_SESSION['author_id']) ? $_SESSION['author_id'] : 'not set') . "\n";
+// echo "</pre>";
 
-// Jika $articles tidak array, inisialisasi sebagai array kosong
-if (!is_array($articles)) {
-    $articles = [];
+// Logout
+if (isset($_GET['logout'])) {
+    session_destroy();
+    header("Location: index.php");
+    exit();
 }
-
-// Hitung total artikel
-$totalArticles = count($articles);
 ?>
+
 <!DOCTYPE html>
 <html lang="id">
+<!-- Sisa kode HTML sama seperti sebelumnya -->
 
 <head>
-    <meta http-equiv="Content-Type" content="html; charset=UTF-8">
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Blog tentang keindahan dan pesona Kota Madiun - kuliner, tempat wisata, dan budaya">
-    <title>Madiun : Kota Pendekar, Surga Kuliner dan Pesona yang Tak Terlupakan</title>
-    <link rel="stylesheet" href="style.css">
-    <link rel="icon" href="./assets/img/head_logo.jpg" type="image/jpg">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <title>Portal Artikel - Madiun Blog</title>
+    <link rel="stylesheet" href="./css/style.css">
     <style>
-        /* Navigation Styles */
-        .navigation {
-            background: #fff;
-            padding: 15px 0;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            margin-bottom: 30px;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
-        
-        .nav-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 15px;
-        }
-        
-        .nav-menu {
-            display: flex;
-            gap: 25px;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-        
-        .nav-menu a {
-            text-decoration: none;
-            color: #333;
-            font-weight: 500;
-            padding: 8px 15px;
-            border-radius: 5px;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-        
-        .nav-menu a:hover, .nav-menu a.active {
-            background-color: #e74c3c;
-            color: white;
-        }
-        
-        /* Search & Filter Section */
-        .search-filter-section {
-            background: #fff;
-            padding: 25px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            margin-bottom: 30px;
-        }
-        
-        .search-filter-container {
-            display: flex;
-            gap: 15px;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-        
-        .search-box {
-            flex: 1;
-            min-width: 250px;
-            position: relative;
-        }
-        
-        .search-input {
-            width: 100%;
-            padding: 12px 45px 12px 15px;
-            border: 2px solid #ddd;
-            border-radius: 25px;
-            font-size: 16px;
-            outline: none;
-            transition: border-color 0.3s ease;
-        }
-        
-        .search-input:focus {
-            border-color: #e74c3c;
-        }
-        
-        .search-btn {
-            position: absolute;
-            right: 5px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: #e74c3c;
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 35px;
-            height: 35px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: background-color 0.3s ease;
-        }
-        
-        .search-btn:hover {
-            background: #c0392b;
-        }
-        
-        .category-filter {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-        
-        .category-select {
-            padding: 10px 15px;
-            border: 2px solid #ddd;
-            border-radius: 5px;
-            font-size: 14px;
+        /* Additional styles for index page */
+        .welcome-container {
+            max-width: 800px;
+            margin: 3rem auto;
+            padding: 2.5rem;
             background: white;
-            cursor: pointer;
-            outline: none;
-            min-width: 120px;
-        }
-        
-        .category-select:focus {
-            border-color: #e74c3c;
-        }
-        
-        .clear-filters {
-            padding: 10px 20px;
-            background: #6c757d;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            text-decoration: none;
-            font-size: 14px;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            transition: background-color 0.3s ease;
-        }
-        
-        .clear-filters:hover {
-            background: #5a6268;
-        }
-        
-        /* Results Info */
-        .results-info {
-            margin-bottom: 20px;
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 5px;
-            border-left: 4px solid #e74c3c;
-        }
-        
-        .results-info h3 {
-            margin: 0 0 5px 0;
-            color: #333;
-        }
-        
-        .results-info p {
-            margin: 0;
-            color: #666;
-            font-size: 14px;
-        }
-        
-        .highlight {
-            background-color: #fff3cd;
-            padding: 2px 4px;
-            border-radius: 3px;
-            font-weight: bold;
-        }
-        
-        /* No Results */
-        .no-results {
+            border-radius: 20px;
+            box-shadow: var(--shadow);
             text-align: center;
-            padding: 60px 20px;
-            background: #fff;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
-        
-        .no-results i {
-            font-size: 4em;
-            color: #ddd;
-            margin-bottom: 20px;
+
+        .welcome-title {
+            font-family: 'Pacifico', cursive;
+            font-size: 2.2rem;
+            color: var(--dark-pink);
+            margin-bottom: 1rem;
         }
-        
-        .no-results h3 {
-            color: #666;
-            margin-bottom: 10px;
+
+        .welcome-subtitle {
+            font-size: 1.1rem;
+            color: var(--text-color);
+            margin-bottom: 2rem;
+            line-height: 1.6;
         }
-        
-        .no-results p {
-            color: #999;
-            margin-bottom: 20px;
+
+        .user-info {
+            background: linear-gradient(135deg, var(--light-pink), var(--accent-pink));
+            padding: 1.5rem;
+            border-radius: 15px;
+            margin-bottom: 2rem;
+            color: var(--text-color);
         }
-        
-        /* Toast Styles */
-        .toast-container {
+
+        .user-info strong {
+            color: var(--dark-pink);
+        }
+
+        .button-container {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-top: 2rem;
+        }
+
+        .btn-custom {
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-family: 'Quicksand', sans-serif;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-primary-custom {
+            background: linear-gradient(135deg, var(--primary-pink), var(--accent-pink));
+            color: white;
+        }
+
+        .btn-primary-custom:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 15px rgba(240, 128, 170, 0.3);
+        }
+
+        .btn-success-custom {
+            background: linear-gradient(135deg, var(--dark-pink), var(--primary-pink));
+            color: white;
+        }
+
+        .btn-success-custom:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 15px rgba(224, 107, 139, 0.3);
+        }
+
+        .btn-danger-custom {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: white;
+        }
+
+        .btn-danger-custom:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 15px rgba(231, 76, 60, 0.3);
+        }
+
+        /* Toaster Styles */
+        .toaster {
             position: fixed;
             top: 20px;
             right: 20px;
+            background-color: #d4749b;
+            /* pink agak gelap */
+            color: black;
+            /* tulisan hitam */
+            padding: 1rem 1.5rem;
+            border-radius: 50px;
+            box-shadow: 0 8px 20px rgba(224, 107, 139, 0.4);
             z-index: 1000;
-            transition: all 0.3s ease;
+            opacity: 0;
+            transform: translateX(100%);
+            transition: all 0.4s cubic-bezier(0.26, 1.36, 0.65, 1);
+            max-width: 320px;
+            font-weight: 600;
+            font-family: 'Quicksand', sans-serif;
         }
-        
-        .toast {
-            background-color: #28a745;
-            color: white;
-            padding: 15px;
-            border-radius: 5px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            animation: slideIn 0.5s ease, fadeOut 0.5s ease 3s forwards;
+
+        .toaster.show {
+            opacity: 1;
+            transform: translateX(0);
         }
-        
-        .toast.error {
-            background-color: #dc3545;
+
+        .toaster .close-btn {
+            background: none;
+            border: none;
+            color: black;
+            font-size: 1.2rem;
+            font-weight: bold;
+            float: right;
+            cursor: pointer;
+            margin-left: 1rem;
+            padding: 0;
+            line-height: 1;
         }
-        
-        .toast-icon {
-            margin-right: 10px;
-            font-size: 1.2em;
+
+        .toaster .close-btn:hover {
+            transform: rotate(90deg);
+            transition: transform 0.3s ease;
         }
-        
-        @keyframes slideIn {
-            from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
+
+        /* Decorative elements */
+        .welcome-container::before {
+            content: '♡';
+            position: absolute;
+            top: -10px;
+            right: 20px;
+            font-size: 2rem;
+            color: var(--light-pink);
+            animation: float 3s ease-in-out infinite;
         }
-        
-        @keyframes fadeOut {
-            from { transform: translateX(0); opacity: 1; }
-            to { transform: translateX(100%); opacity: 0; }
-        }
-        
-        /* Mobile Responsive */
-        @media (max-width: 768px) {
-            .nav-container {
-                flex-direction: column;
-                text-align: center;
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0px);
             }
-            
-            .nav-menu {
-                justify-content: center;
-                width: 100%;
-            }
-            
-            .search-filter-container {
-                flex-direction: column;
-                align-items: stretch;
-            }
-            
-            .search-box {
-                min-width: auto;
-            }
-            
-            .category-filter {
-                justify-content: center;
+            50% {
+                transform: translateY(-10px);
             }
         }
     </style>
 </head>
 
-<body data-new-gr-c-s-check-loaded="14.1101.0" data-gr-ext-installed="" style="overflow: auto;">
-    <?php 
-    // Tampilkan toaster jika ada pesan
-    if (isset($_SESSION['toast_message'])): ?>
-        <div class="toast-container">
-            <div class="toast <?= isset($_SESSION['toast_type']) ? $_SESSION['toast_type'] : '' ?>">
-                <i class="toast-icon <?= 
-                    isset($_SESSION['toast_type']) && $_SESSION['toast_type'] == 'error' 
-                    ? 'fas fa-exclamation-circle' 
-                    : 'fas fa-check-circle' 
-                ?>"></i>
-                <?= htmlspecialchars($_SESSION['toast_message']) ?>
-            </div>
-        </div>
-        <?php 
-        // Hapus pesan setelah ditampilkan
-        unset($_SESSION['toast_message']);
-        unset($_SESSION['toast_type']);
-        endif; 
-    ?>
-
+<body>
+    <!-- Header -->
     <header>
-        <h1>Madiun : Kota Pendekar, Surga Kuliner dan Pesona yang Tak Terlupakan</h1>
-        <p>Temukan pesona tersembunyi Kota Madiun—dari kehangatan kulinernya, keramahan warganya, hingga tempat-tempat
-            yang bikin betah berlama-lama.</p>
-        <div class="header-buttons">
-            <?php if (isLoggedIn()): ?>
-                <a href="dashboard.php" class="btn"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
-                <a href="logout.php" class="btn"><i class="fas fa-sign-out-alt"></i> Logout</a>
-            <?php else: ?>
-                <a href="login.php" class="btn"><i class="fas fa-sign-in-alt"></i> Masuk</a>
-                <a href="register.php" class="btn"><i class="fas fa-user-plus"></i> Daftar</a>
-            <?php endif; ?>
-        </div>
+        <h1>Madiun Blog</h1>
+        <p>Madiun : Kota Pendekar, Surga Kuliner dan Pesona yang Tak Terlupakan</p>
     </header>
 
-    <!-- Search & Filter Section -->
-    <div class="search-filter-section">
-        <form method="GET" action="" class="search-filter-container">
-            <div class="search-box">
-                <input type="text" 
-                       name="search" 
-                       class="search-input" 
-                       placeholder="Cari artikel, kuliner, tempat wisata..." 
-                       value="<?= htmlspecialchars($search) ?>"
-                       autocomplete="off">
-                <button type="submit" class="search-btn">
-                    <i class="fas fa-search"></i>
-                </button>
-            </div>
-            
-            <div class="category-filter">
-                <select name="category" class="category-select" onchange="this.form.submit()">
-                    <option value="">Semua Kategori</option>
-                    <?php foreach ($categories as $category): ?>
-                        <option value="<?= htmlspecialchars($category['name']) ?>" 
-                                <?= $selectedCategory === $category['name'] ? 'selected' : '' ?>>
-                            <?= htmlspecialchars($category['name']) ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-                
-                <?php if (!empty($search) || !empty($selectedCategory)): ?>
-                    <a href="index.php" class="clear-filters">
-                        <i class="fas fa-times"></i> Hapus Filter
-                    </a>
-                <?php endif; ?>
-            </div>
-        </form>
-    </div>
+    <!-- Welcome Container -->
+    <div class="welcome-container">
+        <h2 class="welcome-title">Selamat Datang!</h2>
+        <p class="welcome-subtitle">
+            Bergabunglah dengan komunitas penulis dan pembaca di Madiun Blog.
+            Temukan artikel menarik atau bagikan cerita Anda sendiri.
+        </p>
 
-    <!-- Results Info -->
-    <?php if (!empty($search) || !empty($selectedCategory)): ?>
-        <div class="results-info">
-            <h3>
-                <?php if (!empty($search) && !empty($selectedCategory)): ?>
-                    Hasil pencarian "<?= htmlspecialchars($search) ?>" dalam kategori "<?= htmlspecialchars($selectedCategory) ?>"
-                <?php elseif (!empty($search)): ?>
-                    Hasil pencarian "<?= htmlspecialchars($search) ?>"
-                <?php elseif (!empty($selectedCategory)): ?>
-                    Artikel kategori "<?= htmlspecialchars($selectedCategory) ?>"
-                <?php endif; ?>
-            </h3>
-            <p>Ditemukan <?= $totalArticles ?> artikel</p>
-        </div>
-    <?php endif; ?>
-
-    <!-- Articles Container -->
-    <div class="blog-container">
-        <?php if (!empty($articles)): ?>
-            <?php foreach ($articles as $article): ?>
-            <div class="article-card">
-                <h2 class="title">
-                    <?php
-                    $title = htmlspecialchars($article['title']);
-                    if (!empty($search)) {
-                        $title = preg_replace('/(' . preg_quote($search, '/') . ')/i', '<span class="highlight">$1</span>', $title);
-                    }
-                    echo $title;
-                    ?>
-                </h2>
-                <p class="meta">
-                    Dipublikasikan: <?= date("d F Y", strtotime($article['date'])) ?> |
-                    Penulis: <?= htmlspecialchars($article['author_nickname']) ?> |
-                    Kategori: <?= htmlspecialchars($article['category_names']) ?>
-                </p>
-
-                <img src="assets/img/<?= htmlspecialchars($article['picture']) ?>" 
-                     class="article-image" 
-                     alt="<?= htmlspecialchars($article['title']) ?>" 
-                     loading="lazy">
-
-                <div class="content">
-                    <p>
-                        <?php
-                        $content = htmlspecialchars(substr($article['content'], 0, 200)) . '...';
-                        if (!empty($search)) {
-                            $content = preg_replace('/(' . preg_quote($search, '/') . ')/i', '<span class="highlight">$1</span>', $content);
-                        }
-                        echo $content;
-                        ?>
-                    </p>
-
-                    <button onclick="showArticle(<?= $article['id'] ?>)" class="more-btn">
-                        <i class="fas fa-book-open"></i> Selengkapnya
-                    </button>
-                </div>
-            </div>
-
-            <div id="fullscreen-<?= $article['id'] ?>" class="fullscreen-article" style="display: none;">
-                <div class="fullscreen-content">
-                    <button class="close-btn" onclick="hideArticle(<?= $article['id'] ?>)" aria-label="Tutup artikel">×</button>
-                    <h2><?= htmlspecialchars($article['title']) ?></h2>
-                    <p class="meta">
-                        Dipublikasikan: <?= date("d F Y", strtotime($article['date'])) ?> |
-                        Penulis: <?= htmlspecialchars($article['author_nickname']) ?> |
-                        Kategori: <?= htmlspecialchars($article['category_names']) ?>
-                    </p>
-                    <img src="assets/img/<?= htmlspecialchars($article['picture']) ?>" 
-                         style="max-width: 100%; height: auto; margin-bottom: 15px;" 
-                         alt="<?= htmlspecialchars($article['title']) ?>">
-                    <div class="full-content">
-                        <p><?= nl2br(htmlspecialchars($article['content'])) ?></p>
-                    </div>
-                </div>
-            </div>
-            <?php endforeach; ?>
-        <?php else: ?>
-            <!-- No Results Found -->
-            <div class="no-results">
-                <i class="fas fa-search"></i>
-                <h3>Tidak ada artikel ditemukan</h3>
-                <p>
-                    <?php if (!empty($search) && !empty($selectedCategory)): ?>
-                        Tidak ada artikel yang cocok dengan pencarian "<?= htmlspecialchars($search) ?>" dalam kategori "<?= htmlspecialchars($selectedCategory) ?>"
-                    <?php elseif (!empty($search)): ?>
-                        Tidak ada artikel yang cocok dengan pencarian "<?= htmlspecialchars($search) ?>"
-                    <?php elseif (!empty($selectedCategory)): ?>
-                        Belum ada artikel dalam kategori "<?= htmlspecialchars($selectedCategory) ?>"
-                    <?php else: ?>
-                        Belum ada artikel yang dipublikasikan
-                    <?php endif; ?>
-                </p>
-                <a href="index.php" class="btn">Lihat Semua Artikel</a>
+        <?php if ($isLoggedIn): ?>
+            <div class="user-info">
+                <p>🌸 Selamat datang kembali, <strong><?= htmlspecialchars($userNickname) ?></strong>!</p>
+                <p>Status Anda: <strong><?= ucfirst($userRole) ?></strong> ✨</p>
             </div>
         <?php endif; ?>
+
+        <div class="button-container">
+            <!-- Tombol 1: Lihat Semua Artikel -->
+            <button class="btn-custom btn-primary-custom" onclick="handleLihatArtikel()">
+                📚 Lihat Semua Artikel
+            </button>
+
+            <!-- Tombol 2: Portal dinamis -->
+            <?php if ($isLoggedIn): ?>
+                <?php if ($userRole === 'penulis'): ?>
+                    <a href="dashboard.php" class="btn-custom btn-success-custom">✍️ Portal Penulis</a>
+                <?php elseif ($userRole === 'pengunjung'): ?>
+                    <a href="main.php" class="btn-custom btn-success-custom">👁‍🗨 Portal Pengunjung</a>
+                <?php endif; ?>
+            <?php else: ?>
+                <a href="login.php" class="btn-custom btn-success-custom">🚪 Masuk</a>
+            <?php endif; ?>
+
+            <!-- Tombol 3: Keluar (hanya tampil jika login) -->
+            <?php if ($isLoggedIn): ?>
+                <a href="?logout=1" class="btn-custom btn-danger-custom" onclick="return confirm('Yakin ingin keluar?')">
+                    🚪 Keluar
+                </a>
+            <?php endif; ?>
+        </div>
     </div>
 
-    <footer>
-        <p>© 2025 Jelajah Nusantara | Kuliner jadi puisi, budaya jadi simfoni—di kota yang menari dalam diam dan
-            menggetarkan lewat cerita.</p>
+    <footer style="margin-top: 50px; padding: 46px 0 46px 0;">
+        <p>© <?= date('Y') ?> Jelajah Nusantara | Kuliner jadi puisi, budaya jadi simfoni.</p>
+        <p>Ditulis oleh Sasabila Alya – Universitas Negeri Malang | Artikel Madiun Blog</p>
     </footer>
 
+    <!-- Toaster container -->
+    <div id="toaster" class="toaster">
+        <button class="close-btn" onclick="hideToaster()">&times;</button>
+        <span id="toaster-message"></span>
+    </div>
+
     <script>
-        function showArticle(id) {
-            document.getElementById('fullscreen-' + id).style.display = 'block';
-            document.body.style.overflow = 'hidden';
+        function showToaster(message) {
+            const toaster = document.getElementById('toaster');
+            const messageElement = document.getElementById('toaster-message');
+
+            messageElement.textContent = message;
+            toaster.classList.add('show');
+
+            // Auto hide after 5 seconds
+            setTimeout(() => {
+                hideToaster();
+            }, 5000);
         }
 
-        function hideArticle(id) {
-            document.getElementById('fullscreen-' + id).style.display = 'none';
-            document.body.style.overflow = 'auto';
+        function hideToaster() {
+            document.getElementById('toaster').classList.remove('show');
         }
 
-        // Close modal when clicking outside content
-        document.addEventListener('DOMContentLoaded', function() {
-            const fullscreenArticles = document.querySelectorAll('.fullscreen-article');
-            fullscreenArticles.forEach(function(article) {
-                article.addEventListener('click', function(e) {
-                    if (e.target === article) {
-                        const id = article.id.split('-')[1];
-                        hideArticle(id);
-                    }
-                });
-            });
-
-            // Close modal with Escape key
-            document.addEventListener('keydown', function(e) {
-                if (e.key === 'Escape') {
-                    const visibleModal = document.querySelector('.fullscreen-article[style="display: block;"]');
-                    if (visibleModal) {
-                        const id = visibleModal.id.split('-')[1];
-                        hideArticle(id);
-                    }
-                }
-            });
-
-            // Auto-submit search form on Enter
-            const searchInput = document.querySelector('.search-input');
-            if (searchInput) {
-                searchInput.addEventListener('keypress', function(e) {
-                    if (e.key === 'Enter') {
-                        e.preventDefault();
-                        this.closest('form').submit();
-                    }
-                });
-            }
-        });
-
-        // Highlight search terms in content
-        function highlightSearchTerms() {
-            const searchTerm = "<?= htmlspecialchars($search) ?>";
-            if (searchTerm) {
-                const regex = new RegExp(`(${searchTerm})`, 'gi');
-                const elements = document.querySelectorAll('.content p, .title');
-                
-                elements.forEach(element => {
-                    if (element.innerHTML && !element.querySelector('.highlight')) {
-                        element.innerHTML = element.innerHTML.replace(regex, '<span class="highlight">$1</span>');
-                    }
-                });
-            }
+        function handleLihatArtikel() {
+            <?php if ($isLoggedIn): ?>
+                <?php if ($userRole === 'penulis'): ?>
+                    showToaster("Anda sudah masuk sebagai penulis");
+                <?php elseif ($userRole === 'pengunjung'): ?>
+                    showToaster("Anda sudah masuk sebagai pengunjung");
+                <?php endif; ?>
+            <?php else: ?>
+                showToaster("Masuk untuk melihat artikel atau menulis artikel");
+            <?php endif; ?>
         }
-
-        // Call highlight function after DOM is loaded
-        document.addEventListener('DOMContentLoaded', highlightSearchTerms);
     </script>
+
 </body>
+
 </html>

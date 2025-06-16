@@ -109,19 +109,21 @@ CREATE TABLE `author` (
   `nickname` varchar(100) NOT NULL,
   `email` varchar(150) NOT NULL,
   `password` varchar(255) NOT NULL,
+  `role` enum('pengunjung','penulis') NOT NULL DEFAULT 'pengunjung',
   PRIMARY KEY (`id`),
   UNIQUE KEY `email` (`email`)
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=latin1;
 
 /*Data for the table `author` */
 
-insert  into `author`(`id`,`nickname`,`email`,`password`) values 
-(1,'SALSABILA ALYA PUTRI WALUYO','salsabila@gmail.com','$2y$10$Wle9n/KAGbiKhTimm5zo5OiVZtayWJcfgzw6GHV6RZrD3H9gY8ose'),
-(2,'ALVIN ZANUA PUTRA','alvinzanuaputra@gmail.com','$2y$10$Wle9n/KAGbiKhTimm5zo5OiVZtayWJcfgzw6GHV6RZrD3H9gY8ose'),
-(3,'CANTIKA MELATI','cantikamelati@gmail.com','$2y$10$Wle9n/KAGbiKhTimm5zo5OiVZtayWJcfgzw6GHV6RZrD3H9gY8ose'),
-(4,'ABDI RAMADHAN','abdiramadhan@gmail.com','$2y$10$Wle9n/KAGbiKhTimm5zo5OiVZtayWJcfgzw6GHV6RZrD3H9gY8ose'),
-(5,'FERDIANSYAH','ferdiansyah@gmail.com','$2y$10$Wle9n/KAGbiKhTimm5zo5OiVZtayWJcfgzw6GHV6RZrD3H9gY8ose'),
-(6,'TIMOTHY ANTONIO','timothy@gmail.com','$2y$10$Wle9n/KAGbiKhTimm5zo5OiVZtayWJcfgzw6GHV6RZrD3H9gY8ose');
+insert  into `author`(`id`,`nickname`,`email`,`password`,`role`) values 
+(1,'SALSABILA ALYA PUTRI WALUYO','salsabila@gmail.com','$2y$10$Wle9n/KAGbiKhTimm5zo5OiVZtayWJcfgzw6GHV6RZrD3H9gY8ose','penulis'),
+(2,'ALVIN ZANUA PUTRA','alvinzanuaputra@gmail.com','$2y$10$Wle9n/KAGbiKhTimm5zo5OiVZtayWJcfgzw6GHV6RZrD3H9gY8ose','penulis'),
+(3,'CANTIKA MELATI','cantikamelati@gmail.com','$2y$10$Wle9n/KAGbiKhTimm5zo5OiVZtayWJcfgzw6GHV6RZrD3H9gY8ose','pengunjung'),
+(4,'ABDI RAMADHAN','abdiramadhan@gmail.com','$2y$10$Wle9n/KAGbiKhTimm5zo5OiVZtayWJcfgzw6GHV6RZrD3H9gY8ose','penulis'),
+(5,'FERDIANSYAH','ferdiansyah@gmail.com','$2y$10$Wle9n/KAGbiKhTimm5zo5OiVZtayWJcfgzw6GHV6RZrD3H9gY8ose','pengunjung'),
+(6,'TIMOTHY ANTONIO','timothy@gmail.com','$2y$10$Wle9n/KAGbiKhTimm5zo5OiVZtayWJcfgzw6GHV6RZrD3H9gY8ose','penulis'),
+(7,'SABIL','sabil@gmail.com','$2y$10$m/UgaXBM5EuOvgHKhBXDd./ukBKyAdWonVmRvn2lUnBathAJNoizm','penulis');
 
 /*Table structure for table `category` */
 

@@ -1,15 +1,137 @@
 <?php
+// Set session timeout 1 jam (3600 detik) SEBELUM session_start()
+ini_set('session.gc_maxlifetime', 3600);
+session_set_cookie_params(3600);
+
 session_start();
 require 'koneksi.php';
 
-// Pastikan hanya author yang login yang bisa mengakses halaman ini
-if (!isset($_SESSION['author_id'])) {
+// Fungsi untuk cek session timeout
+function isLoggedIn()
+{
+    // Cek apakah session masih valid
+    if (isset($_SESSION['author_id']) && isset($_SESSION['last_activity'])) {
+        // Cek apakah session sudah expired (1 jam = 3600 detik)
+        if (time() - $_SESSION['last_activity'] > 3600) {
+            // Session expired, destroy session
+            $_SESSION['toast_message'] = 'Session Anda telah berakhir. Silakan login kembali.';
+            $_SESSION['toast_type'] = 'error';
+            session_unset();
+            session_destroy();
+            return false;
+        }
+        // Update last activity time
+        $_SESSION['last_activity'] = time();
+        return true;
+    }
+    return false;
+}
+
+// Fungsi untuk cek role/permission author
+function isAuthorized()
+{
+    global $pdo;
+    
+    // Pastikan user sudah login
+    if (!isLoggedIn()) {
+        return false;
+    }
+    
+    // Cek apakah user memiliki role yang sesuai
+    if (isset($_SESSION['role'])) {
+        // Hanya role 'penulis' yang diizinkan mengakses dashboard
+        return $_SESSION['role'] === 'penulis';
+    }
+    
+    // Jika tidak ada role di session, cek dari database
+    $stmt = $pdo->prepare("SELECT role FROM author WHERE id = ?");
+    $stmt->execute([$_SESSION['author_id']]);
+    $author = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if ($author) {
+        $_SESSION['role'] = $author['role']; // Simpan role ke session untuk cek selanjutnya
+        // Hanya role 'penulis' yang diizinkan
+        return $author['role'] === 'penulis';
+    }
+    
+    return false;
+}
+
+// Fungsi untuk mendapatkan informasi lengkap author
+function getAuthorInfo($author_id)
+{
+    global $pdo;
+    
+    $stmt = $pdo->prepare("SELECT id, nickname, email, role FROM author WHERE id = ?");
+    $stmt->execute([$author_id]);
+    return $stmt->fetch(PDO::FETCH_ASSOC);
+}
+
+// Pastikan hanya penulis yang bisa mengakses halaman dashboard
+if (!isAuthorized()) {
+    // Cek apakah user sudah login tapi role-nya pengunjung
+    if (isset($_SESSION['author_id']) && isset($_SESSION['role']) && $_SESSION['role'] === 'pengunjung') {
+        // User login sebagai pengunjung - akses ditolak
+        $_SESSION['toast_message'] = 'Akses ditolak! Hanya penulis yang dapat mengakses dashboard. Anda login sebagai pengunjung.';
+        $_SESSION['toast_type'] = 'error';
+        
+        // Log attempt untuk keamanan
+        error_log("Dashboard access denied for visitor: " . ($_SESSION['email'] ?? $_SESSION['nickname'] ?? 'unknown') . " (ID: " . $_SESSION['author_id'] . ")");
+        
+        // Redirect ke halaman utama
+        header("Location: main.php");
+        exit();
+    } 
+    // Jika belum login sama sekali atau ada masalah dengan session
+    else {
+        $_SESSION['toast_message'] = 'Silakan login sebagai penulis untuk mengakses dashboard.';
+        $_SESSION['toast_type'] = 'error';
+        header("Location: login.php");
+        exit();
+    }
+}
+
+// Double check - pastikan role benar-benar 'penulis'
+if ($_SESSION['role'] !== 'penulis') {
+    $_SESSION['toast_message'] = 'Akses ditolak! Hanya penulis yang dapat mengakses dashboard.';
+    $_SESSION['toast_type'] = 'error';
+    
+    // Hapus session yang tidak valid
+    session_unset();
+    session_destroy();
+    
     header("Location: login.php");
     exit();
 }
 
+// Ambil informasi author yang sudah terverifikasi
 $current_author_id = $_SESSION['author_id'];
 $current_author_nickname = $_SESSION['nickname'];
+$current_author_role = $_SESSION['role']; // Pasti 'penulis' karena sudah dicek di atas
+
+// Fungsi untuk logging aktivitas (opsional - jika ingin menambah tabel log)
+function logUserActivity($action, $details = '')
+{
+    global $pdo;
+    
+    try {
+        // Pastikan tabel user_activity_log ada, jika tidak buat sederhana
+        $stmt = $pdo->prepare("INSERT INTO user_activity_log (author_id, action, details, ip_address, timestamp) VALUES (?, ?, ?, ?, NOW()) 
+                               ON DUPLICATE KEY UPDATE action = action"); // Ignore jika error
+        $stmt->execute([
+            $_SESSION['author_id'],
+            $action,
+            $details,
+            $_SERVER['REMOTE_ADDR'] ?? 'unknown'
+        ]);
+    } catch (Exception $e) {
+        // Jika tabel belum ada, bisa diabaikan atau buat log ke file
+        error_log("User activity: " . $_SESSION['nickname'] . " - " . $action . " - " . $details);
+    }
+}
+
+// Log akses dashboard
+logUserActivity('dashboard_access', 'Penulis mengakses dashboard');
 
 function getAllArticles($search = '', $category = '')
 {
@@ -71,11 +193,6 @@ function getArticleById($id)
     return $stmt->fetch(PDO::FETCH_ASSOC);
 }
 
-function isLoggedIn()
-{
-    return isset($_SESSION['author_id']);
-}
-
 function sanitizeInput($data)
 {
     return htmlspecialchars(strip_tags(trim($data)));
@@ -114,6 +231,13 @@ $categories = getAllCategories();
 if (!is_array($articles)) {
     $articles = [];
 }
+
+// Hitung sisa waktu session
+$sessionTimeLeft = 0;
+if (isset($_SESSION['last_activity'])) {
+    $sessionTimeLeft = 3600 - (time() - $_SESSION['last_activity']); // 3600 detik = 1 jam
+    if ($sessionTimeLeft < 0) $sessionTimeLeft = 0;
+}
 ?>
 
 <!DOCTYPE html>
@@ -123,7 +247,7 @@ if (!is_array($articles)) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - Madiun Blog</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="./css/style.css">
     <link rel="icon" href="/assets/img/head_logo.jpg" type="image/jpg">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
     <style>
@@ -168,6 +292,65 @@ if (!is_array($articles)) {
 
         .btn-logout:hover {
             background-color: #c82333;
+        }
+
+        .session-info-bar {
+            background: linear-gradient(135deg, #6c757d, #495057);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .session-timer {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: bold;
+        }
+
+        .session-timer i {
+            color: #ffc107;
+        }
+
+        .session-warning {
+            background: linear-gradient(135deg, #fd7e14, #e63946) !important;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.8;
+            }
+
+            100% {
+                opacity: 1;
+            }
+        }
+
+        .extend-session-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s ease;
+        }
+
+        .extend-session-btn:hover {
+            background: #218838;
         }
 
         .stats-container {
@@ -310,6 +493,11 @@ if (!is_array($articles)) {
 
         @media (max-width: 768px) {
             .dashboard-header {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .session-info-bar {
                 flex-direction: column;
                 text-align: center;
             }
@@ -498,11 +686,10 @@ if (!is_array($articles)) {
         </div>
         <div class="dashboard-actions">
             <a href="tambah_artikel.php" class="btn">+ Tambah Artikel</a>
-            <a href="index.php" class="btn" style="background-color: #28a745; color: white;"><i class="fas fa-eye"></i> Lihat Blog</a>
+            <a href="main.php" class="btn" style="background-color: #28a745; color: white;"><i class="fas fa-eye"></i> Semua Artikel</a>
             <a href="logout.php" class="btn" style="background-color: #dc3545; color: white;"><i class="fas fa-sign-out-alt"></i> Logout</a>
         </div>
     </div>
-
     <!-- Search & Filter Section -->
     <div class="search-filter-section">
         <form method="GET" action="" class="search-filter-container">
@@ -667,7 +854,7 @@ if (!is_array($articles)) {
                                     Kategori: <?= htmlspecialchars($article['category_names']) ?>
                                 </p>
                                 <?php if (!empty($article['picture'])): ?>
-                                    <img src="/assets/img/<?= htmlspecialchars($article['picture']) ?>"
+                                    <img src="./assets/img/<?= htmlspecialchars($article['picture']) ?>"
                                         style="max-width: 100%; height: auto; margin-bottom: 15px;"
                                         alt="<?= htmlspecialchars($article['title']) ?>">
                                 <?php endif; ?>
@@ -688,210 +875,331 @@ if (!is_array($articles)) {
 
     <footer style="margin-top: 50px;">
         <p>© <?= date('Y') ?> Jelajah Nusantara | Kuliner jadi puisi, budaya jadi simfoni.</p>
+        <p>Ditulis oleh Sasabila Alya – Universitas Negeri Malang | Artikel Madiun Blog</p>
     </footer>
 
     <script>
+        // Session Timer
+        let sessionTimeLeft = <?= $sessionTimeLeft ?>;
+        const sessionTimer = document.getElementById('sessionTimer');
+        const sessionInfoBar = document.getElementById('sessionInfoBar');
+
+        function updateSessionTimer() {
+            if (sessionTimeLeft <= 0) {
+                // Session habis, redirect ke login
+                showToast('Session Anda telah berakhir. Silakan login kembali.', 'error');
+                setTimeout(() => {
+                    window.location.href = 'login.php';
+                }, 2000);
+                return;
+            }
+
+            // Update display timer
+            const hours = Math.floor(sessionTimeLeft / 3600);
+            const minutes = Math.floor((sessionTimeLeft % 3600) / 60);
+            const seconds = sessionTimeLeft % 60;
+
+            sessionTimer.textContent =
+                String(hours).padStart(2, '0') + ':' +
+                String(minutes).padStart(2, '0') + ':' +
+                String(seconds).padStart(2, '0');
+
+            // Berikan warning jika tinggal 5 menit
+            if (sessionTimeLeft <= 300) { // 5 menit = 300 detik
+                sessionInfoBar.classList.add('session-warning');
+
+                // Tampilkan notifikasi warning setiap 1 menit
+                if (sessionTimeLeft % 60 === 0) {
+                    const minutesLeft = Math.floor(sessionTimeLeft / 60);
+                    showToast(`Anda akan dikeluarkan otomatis dalam ${minutesLeft} menit!`, 'warning', 'setelahnya') ;
+                }
+            }
+
+            sessionTimeLeft--;
+        }
+
+        // Update timer setiap detik
+        setInterval(updateSessionTimer, 1000);
+
+        // Fungsi untuk menampilkan toast notification
+        function showToast(message, type = 'info') {
+            const toastContainer = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+
+            // Set class berdasarkan type
+            let bgColor;
+            switch (type) {
+                case 'success':
+                    bgColor = '#28a745';
+                    break;
+                case 'error':
+                    bgColor = '#dc3545';
+                    break;
+                case 'warning':
+                    bgColor = '#ffc107';
+                    break;
+                default:
+                    bgColor = '#6c757d';
+            }
+
+            toast.style.cssText = `
+                background-color: ${bgColor};
+                color: white;
+                padding: 15px 20px;
+                margin-bottom: 10px;
+                border-radius: 5px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                animation: slideInRight 0.3s ease;
+                cursor: pointer;
+                position: relative;
+                max-width: 400px;
+                word-wrap: break-word;
+            `;
+
+            toast.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>${message}</span>
+                    <button onclick="this.parentElement.parentElement.remove()" 
+                            style="background: none; border: none; color: white; font-size: 18px; cursor: pointer; margin-left: 10px;">×</button>
+                </div>
+            `;
+
+            toastContainer.appendChild(toast);
+
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.style.animation = 'slideOutRight 0.3s ease';
+                    setTimeout(() => {
+                        if (toast.parentNode) {
+                            toast.remove();
+                        }
+                    }, 300);
+                }
+            }, 8000);
+
+            // Click to dismiss
+            toast.addEventListener('click', () => {
+                toast.remove();
+            });
+        }
+
+        // Fungsi untuk menampilkan artikel dalam fullscreen
         function showArticle(id) {
-            document.getElementById('fullscreen-' + id).style.display = 'block';
-            document.body.style.overflow = 'hidden';
+            const fullscreenDiv = document.getElementById('fullscreen-' + id);
+            if (fullscreenDiv) {
+                fullscreenDiv.style.display = 'flex';
+                document.body.style.overflow = 'hidden'; // Prevent scrolling
+            }
         }
 
+        // Fungsi untuk menyembunyikan artikel fullscreen
         function hideArticle(id) {
-            document.getElementById('fullscreen-' + id).style.display = 'none';
-            document.body.style.overflow = 'auto';
+            const fullscreenDiv = document.getElementById('fullscreen-' + id);
+            if (fullscreenDiv) {
+                fullscreenDiv.style.display = 'none';
+                document.body.style.overflow = 'auto'; // Enable scrolling
+            }
         }
 
-        // Close modal when clicking outside content
-        document.addEventListener('DOMContentLoaded', function() {
-            const fullscreenArticles = document.querySelectorAll('.fullscreen-article');
-            fullscreenArticles.forEach(function(article) {
-                article.addEventListener('click', function(e) {
-                    if (e.target === article) {
-                        const id = article.id.split('-')[1];
-                        hideArticle(id);
+        // Fungsi konfirmasi hapus artikel
+        function confirmDelete(title) {
+            return confirm(`Apakah Anda yakin ingin menghapus artikel "${title}"?\n\nTindakan ini tidak dapat dibatalkan.`);
+        }
+
+        // CSS Animation untuk toast
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideInRight {
+                from {
+                    transform: translateX(100%);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+            }
+            
+            @keyframes slideOutRight {
+                from {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+                to {
+                    transform: translateX(100%);
+                    opacity: 0;
+                }
+            }
+            
+            .fullscreen-article {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0, 0, 0, 0.9);
+                z-index: 10000;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                padding: 20px;
+                box-sizing: border-box;
+            }
+            
+            .fullscreen-content {
+                background: white;
+                padding: 30px;
+                border-radius: 10px;
+                max-width: 90%;
+                max-height: 90%;
+                overflow-y: auto;
+                position: relative;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            }
+            
+            .close-btn {
+                position: absolute;
+                top: 15px;
+                right: 20px;
+                background: #dc3545;
+                color: white;
+                border: none;
+                width: 35px;
+                height: 35px;
+                border-radius: 50%;
+                font-size: 20px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: background-color 0.3s ease;
+            }
+            
+            .close-btn:hover {
+                background: #c82333;
+            }
+            
+            .fullscreen-content h2 {
+                margin-top: 0;
+                color: #333;
+                padding-right: 50px;
+            }
+            
+            .fullscreen-content .meta {
+                color: #666;
+                font-size: 14px;
+                margin-bottom: 20px;
+                padding-bottom: 15px;
+                border-bottom: 1px solid #eee;
+            }
+            
+            .fullscreen-content .full-content {
+                line-height: 1.6;
+                color: #333;
+                text-align: justify;
+            }
+            
+            /* Responsive design untuk fullscreen modal */
+            @media (max-width: 768px) {
+                .fullscreen-content {
+                    padding: 20px;
+                    max-width: 95%;
+                    max-height: 95%;
+                }
+                
+                .fullscreen-content h2 {
+                    font-size: 1.5em;
+                    padding-right: 40px;
+                }
+                
+                .close-btn {
+                    top: 10px;
+                    right: 15px;
+                    width: 30px;
+                    height: 30px;
+                    font-size: 18px;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+
+        // Event listener untuk ESC key pada fullscreen modal
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                const fullscreenModals = document.querySelectorAll('.fullscreen-article');
+                fullscreenModals.forEach(modal => {
+                    if (modal.style.display === 'flex') {
+                        modal.style.display = 'none';
+                        document.body.style.overflow = 'auto';
                     }
                 });
-            });
+            }
+        });
 
-            // Close modal with Escape key
-            document.addEventListener('keydown', function(e) {
-                if (e.key === 'Escape') {
-                    const visibleModal = document.querySelector('.fullscreen-article[style*="display: block"]');
-                    if (visibleModal) {
-                        const id = visibleModal.id.split('-')[1];
-                        hideArticle(id);
-                    }
+        // Auto-refresh halaman setiap 30 menit untuk mencegah session timeout yang tidak terduga
+        setInterval(function() {
+            // Hanya refresh jika tidak ada modal yang terbuka
+            const openModals = document.querySelectorAll('.fullscreen-article[style*="flex"]');
+            if (openModals.length === 0 && sessionTimeLeft > 1800) { // Hanya jika masih ada lebih dari 30 menit
+                showToast('Halaman akan direfresh untuk menjaga keamanan session...', 'info');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 3000);
+            }
+        }, 1800000); // 30 menit
+
+        // Tampilkan toast jika ada pesan dari server
+        <?php if (isset($_SESSION['toast_message'])): ?>
+            showToast(
+                '<?= addslashes($_SESSION['toast_message']) ?>',
+                '<?= $_SESSION['toast_type'] ?? 'info' ?>'
+            );
+        <?php
+            unset($_SESSION['toast_message']);
+            unset($_SESSION['toast_type']);
+        endif;
+        ?>
+
+        // Fungsi untuk smooth scroll ke hasil pencarian
+        function scrollToResults() {
+            const resultsInfo = document.querySelector('.results-info');
+            if (resultsInfo) {
+                resultsInfo.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            }
+        }
+
+        // Auto scroll ke hasil pencarian jika ada parameter search atau category
+        window.addEventListener('load', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('search') || urlParams.has('category')) {
+                setTimeout(scrollToResults, 500);
+            }
+        });
+
+        // Lazy loading untuk gambar artikel
+        const articleImages = document.querySelectorAll('.article-image-cell img');
+        const imageObserver = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const img = entry.target;
+                    img.style.opacity = '0';
+                    img.style.transition = 'opacity 0.3s ease';
+
+                    img.onload = () => {
+                        img.style.opacity = '1';
+                    };
+
+                    observer.unobserve(img);
                 }
             });
         });
 
-        function showToast(message, type = 'success') {
-            // Buat elemen toast
-            const toast = document.createElement('div');
-            toast.classList.add('toast', type);
-            toast.style.cssText = `
-                background-color: ${type === 'success' ? '#28a745' : '#dc3545'};
-                color: white;
-                padding: 15px;
-                border-radius: 5px;
-                margin-bottom: 10px;
-                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-                opacity: 0;
-                transition: opacity 0.3s ease-in-out;
-            `;
-            toast.textContent = message;
-
-            // Tambahkan ke container
-            const container = document.getElementById('toastContainer');
-            container.appendChild(toast);
-
-            // Tampilkan toast
-            setTimeout(() => {
-                toast.style.opacity = '1';
-            }, 10);
-
-            // Sembunyikan toast setelah 3 detik
-            setTimeout(() => {
-                toast.style.opacity = '0';
-
-                // Hapus dari DOM setelah animasi
-                setTimeout(() => {
-                    container.removeChild(toast);
-                }, 300);
-            }, 3000);
-        }
-
-        // Cek apakah ada pesan dari session
-        <?php
-        if (isset($_SESSION['message']) && isset($_SESSION['message_type'])) {
-            $message = htmlspecialchars($_SESSION['message']);
-            $type = htmlspecialchars($_SESSION['message_type']);
-
-            // Hapus pesan dari session setelah dibaca
-            unset($_SESSION['message']);
-            unset($_SESSION['message_type']);
-        ?>
-            document.addEventListener('DOMContentLoaded', function() {
-                showToast('<?= $message ?>', '<?= $type ?>');
-            });
-        <?php } ?>
-
-        // Fungsi konfirmasi hapus artikel
-        function confirmDelete(articleTitle) {
-            // Hapus modal yang sudah ada sebelumnya
-            const existingModal = document.getElementById('deleteConfirmModal');
-            if (existingModal) {
-                document.body.removeChild(existingModal);
-            }
-
-            // Buat modal konfirmasi kustom
-            const modal = document.createElement('div');
-            modal.id = 'deleteConfirmModal';
-            modal.style.position = 'fixed';
-            modal.style.top = '0';
-            modal.style.left = '0';
-            modal.style.width = '100%';
-            modal.style.height = '100%';
-            modal.style.backgroundColor = 'rgba(0,0,0,0.5)';
-            modal.style.display = 'flex';
-            modal.style.justifyContent = 'center';
-            modal.style.alignItems = 'center';
-            modal.style.zIndex = '9999';
-
-            const modalContent = document.createElement('div');
-            modalContent.style.backgroundColor = 'white';
-            modalContent.style.padding = '20px';
-            modalContent.style.borderRadius = '10px';
-            modalContent.style.textAlign = 'center';
-            modalContent.style.maxWidth = '400px';
-            modalContent.style.width = '90%';
-            modalContent.style.position = 'relative';
-
-            modalContent.innerHTML = `
-                <button id="closeModalBtn" style="position: absolute; top: 10px; right: 10px; background: none; border: none; font-size: 20px; cursor: pointer;">&times;</button>
-                <h3>Konfirmasi Hapus Artikel</h3>
-                <p>Apakah Anda yakin ingin menghapus artikel:</p>
-                <strong>"${articleTitle}"</strong>
-                <div style="margin-top: 20px;">
-                    <button id="confirmBtn" style="background-color: #dc3545; color: white; padding: 10px 20px; margin-right: 10px; border: none; border-radius: 5px;">Hapus</button>
-                    <button id="cancelBtn" style="background-color: #6c757d; color: white; padding: 10px 20px; border: none; border-radius: 5px;">Batal</button>
-                </div>
-            `;
-
-            modal.appendChild(modalContent);
-            document.body.appendChild(modal);
-
-            return new Promise((resolve) => {
-                const confirmBtn = document.getElementById('confirmBtn');
-                const cancelBtn = document.getElementById('cancelBtn');
-                const closeModalBtn = document.getElementById('closeModalBtn');
-
-                const removeModal = () => {
-                    document.body.removeChild(modal);
-                };
-
-                const handleConfirm = () => {
-                    removeModal();
-                    resolve(true);
-                };
-
-                const handleCancel = () => {
-                    removeModal();
-                    resolve(false);
-                };
-
-                confirmBtn.addEventListener('click', handleConfirm);
-                cancelBtn.addEventListener('click', handleCancel);
-                closeModalBtn.addEventListener('click', handleCancel);
-
-                // Tutup modal jika mengklik di luar area
-                modal.addEventListener('click', (e) => {
-                    if (e.target === modal) {
-                        removeModal();
-                        resolve(false);
-                    }
-                });
-
-                // Tambahkan event listener untuk tombol escape
-                const handleEscapeKey = (e) => {
-                    if (e.key === 'Escape') {
-                        removeModal();
-                        resolve(false);
-                        document.removeEventListener('keydown', handleEscapeKey);
-                    }
-                };
-                document.addEventListener('keydown', handleEscapeKey);
-            });
-        }
-
-        // Tambahkan event listener untuk konfirmasi hapus
-        document.addEventListener('DOMContentLoaded', function() {
-            const deleteButtons = document.querySelectorAll('form[action="hapus_artikel.php"]');
-            deleteButtons.forEach(form => {
-                form.addEventListener('submit', async function(e) {
-                    e.preventDefault();
-                    const articleTitle = this.querySelector('input[name="id"]').closest('tr').querySelector('.article-title').textContent.trim();
-                    const confirmed = await confirmDelete(articleTitle);
-
-                    if (confirmed) {
-                        this.submit();
-                    }
-                });
-            });
-        });
-
-        // Auto-submit search form on Enter
-        document.addEventListener('DOMContentLoaded', function() {
-            const searchInput = document.querySelector('.search-input');
-            if (searchInput) {
-                searchInput.addEventListener('keypress', function(e) {
-                    if (e.key === 'Enter') {
-                        e.preventDefault();
-                        this.closest('form').submit();
-                    }
-                });
-            }
-        });
+    
+        console.log('Dashboard berhasil dimuat!');
     </script>
 </body>
 

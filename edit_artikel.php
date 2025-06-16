@@ -8,7 +8,8 @@ if (!isset($_SESSION['author_id'])) {
     exit();
 }
 
-function getArticleById($id) {
+function getArticleById($id)
+{
     global $pdo;
     $stmt = $pdo->prepare("SELECT a.*, 
                          GROUP_CONCAT(c.name SEPARATOR ', ') as category_names,
@@ -22,20 +23,21 @@ function getArticleById($id) {
     return $stmt->fetch(PDO::FETCH_ASSOC);
 }
 
-function updateArticle($id, $title, $content, $picture, $date) {
+function updateArticle($id, $title, $content, $picture, $date)
+{
     global $pdo, $current_author_id;
-    
+
     try {
         $pdo->beginTransaction();
-        
+
         // Pastikan artikel milik penulis yang sedang login
         $checkStmt = $pdo->prepare("SELECT 1 FROM article_author WHERE article_id = ? AND author_id = ?");
         $checkStmt->execute([$id, $current_author_id]);
-        
+
         if ($checkStmt->rowCount() == 0) {
             throw new Exception("Anda tidak memiliki izin untuk mengedit artikel ini.");
         }
-        
+
         // Update artikel dengan semua field
         $stmt = $pdo->prepare("UPDATE article SET 
                                 title = ?, 
@@ -44,11 +46,11 @@ function updateArticle($id, $title, $content, $picture, $date) {
                                 date = ? 
                                 WHERE id = ?");
         $result = $stmt->execute([$title, $content, $picture, $date, $id]);
-        
+
         if (!$result) {
             throw new Exception("Gagal memperbarui artikel.");
         }
-        
+
         $pdo->commit();
         return true;
     } catch (Exception $e) {
@@ -57,26 +59,27 @@ function updateArticle($id, $title, $content, $picture, $date) {
     }
 }
 
-function updateArticleCategories($article_id, $category_ids) {
+function updateArticleCategories($article_id, $category_ids)
+{
     global $pdo;
-    
+
     try {
         // Hapus kategori lama
         $deleteStmt = $pdo->prepare("DELETE FROM article_category WHERE article_id = ?");
         $deleteStmt->execute([$article_id]);
-        
+
         // Tambahkan kategori baru
         $insertStmt = $pdo->prepare("INSERT INTO article_category (article_id, category_id) VALUES (?, ?)");
-        
+
         // Pecah string category_ids menjadi array
         $categories = explode(',', $category_ids);
-        
+
         foreach ($categories as $category_id) {
             if (!empty(trim($category_id))) {
                 $insertStmt->execute([$article_id, $category_id]);
             }
         }
-        
+
         return true;
     } catch (Exception $e) {
         return false;
@@ -125,18 +128,19 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
 // Logging untuk debugging
-function logDebug($message) {
+function logDebug($message)
+{
     $logFile = 'artikel_debug.log';
     $timestamp = date('[Y-m-d H:i:s]');
     $logMessage = "{$timestamp} {$message}\n";
-    
+
     // Batasi ukuran log file (misalnya 100 KB)
     $maxLogSize = 100 * 1024; // 100 KB
     if (file_exists($logFile) && filesize($logFile) > $maxLogSize) {
         // Rotasi log: simpan log lama dan buat log baru
         rename($logFile, $logFile . '.old');
     }
-    
+
     file_put_contents($logFile, $logMessage, FILE_APPEND);
 }
 
@@ -152,19 +156,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update'])) {
     $content = trim($_POST['content']);
     $current_picture = $_POST['current_picture'];
     $category_ids = isset($_POST['categories']) ? implode(',', $_POST['categories']) : '';
-    
+
     // Handle file upload
     $picture = $current_picture; // Keep current picture by default
-    
+
     if (isset($_FILES['picture']) && $_FILES['picture']['error'] == 0) {
         $allowed = ['jpg', 'jpeg', 'png', 'gif'];
         $filename = $_FILES['picture']['name'];
         $filetype = pathinfo($filename, PATHINFO_EXTENSION);
-        
+
         if (in_array(strtolower($filetype), $allowed)) {
             $new_filename = time() . '_' . $filename;
             $upload_path = 'assets/img/' . $new_filename;
-            
+
             if (move_uploaded_file($_FILES['picture']['tmp_name'], $upload_path)) {
                 // Delete old picture if it exists
                 if ($current_picture && file_exists('assets/img/' . $current_picture)) {
@@ -178,20 +182,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update'])) {
             $error = "Format file tidak didukung. Gunakan JPG, JPEG, PNG, atau GIF.";
         }
     }
-    
+
     if (empty($error) && !empty($title) && !empty($content)) {
         // Gunakan tanggal artikel asli
         $date = $article['date'];
-        
+
         $update_result = updateArticle($article_id, $title, $content, $picture, $date);
         if ($update_result === true) {
             // Update kategori
             if (updateArticleCategories($article_id, $category_ids)) {
                 $message = "Artikel berhasil diperbarui!";
-                
+
                 // Logging yang lebih ringkas
                 logDebug("Update Artikel: ID={$article_id}, Judul=" . substr($title, 0, 50) . "...");
-                
+
                 // Refresh article data
                 $article = getArticleById($article_id);
             } else {
@@ -217,12 +221,13 @@ $current_categories = $article ? explode(',', $article['category_ids'] ?? '') : 
 
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Edit Artikel - Madiun Blog</title>
     <link rel="icon" href="./assets/img/head_logo.jpg" type="image/jpg">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="./css/style.css">
     <style>
         .form-container {
             max-width: 800px;
@@ -230,20 +235,20 @@ $current_categories = $article ? explode(',', $article['category_ids'] ?? '') : 
             padding: 20px;
             background: #fff;
             border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
-        
+
         .form-group {
             margin-bottom: 20px;
         }
-        
+
         .form-group label {
             display: block;
             margin-bottom: 5px;
             font-weight: bold;
             color: #333;
         }
-        
+
         .form-group input,
         .form-group select,
         .form-group textarea {
@@ -254,43 +259,43 @@ $current_categories = $article ? explode(',', $article['category_ids'] ?? '') : 
             font-size: 16px;
             box-sizing: border-box;
         }
-        
+
         .form-group textarea {
             height: 200px;
             resize: vertical;
         }
-        
+
         .current-image {
             max-width: 200px;
             max-height: 150px;
             margin: 10px 0;
             border-radius: 5px;
         }
-        
+
         .alert {
             padding: 15px;
             margin-bottom: 20px;
             border-radius: 5px;
         }
-        
+
         .alert-success {
             background-color: #d4edda;
             border-color: #c3e6cb;
             color: #155724;
         }
-        
+
         .alert-error {
             background-color: #f8d7da;
             border-color: #f5c6cb;
             color: #721c24;
         }
-        
+
         .btn-container {
             display: flex;
             gap: 10px;
             margin-top: 20px;
         }
-        
+
         .btn-secondary {
             background-color: #6c757d;
             color: white;
@@ -300,28 +305,28 @@ $current_categories = $article ? explode(',', $article['category_ids'] ?? '') : 
             border: none;
             cursor: pointer;
         }
-        
+
         .btn-secondary:hover {
             background-color: #545b62;
         }
-        
+
         .form-group select[multiple] {
             height: auto;
             min-height: 100px;
         }
-        
+
         .form-group select[multiple] option {
             padding: 8px;
             margin-bottom: 5px;
             background-color: #f8f9fa;
             border-radius: 3px;
         }
-        
+
         .form-group select[multiple] option:checked {
             background-color: #e74c3c;
             color: white;
         }
-        
+
         /* Tambahan untuk Toast Notification */
         .toast-container {
             position: fixed;
@@ -329,7 +334,7 @@ $current_categories = $article ? explode(',', $article['category_ids'] ?? '') : 
             right: 20px;
             z-index: 1050;
         }
-        
+
         .toast {
             opacity: 0;
             transition: opacity 0.3s ease-in-out;
@@ -337,10 +342,10 @@ $current_categories = $article ? explode(',', $article['category_ids'] ?? '') : 
             color: white;
             padding: 15px;
             border-radius: 5px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             margin-bottom: 10px;
         }
-        
+
         .toast.show {
             opacity: 1;
         }
@@ -350,6 +355,7 @@ $current_categories = $article ? explode(',', $article['category_ids'] ?? '') : 
         }
     </style>
 </head>
+
 <body>
     <header>
         <h1>Edit Artikel</h1>
@@ -364,7 +370,7 @@ $current_categories = $article ? explode(',', $article['category_ids'] ?? '') : 
             <form method="POST" enctype="multipart/form-data">
                 <input type="hidden" name="id" value="<?= $article_id ?>">
                 <input type="hidden" name="current_picture" value="<?= htmlspecialchars($current_picture) ?>">
-                
+
                 <div class="form-group">
                     <label for="title">Judul Artikel *</label>
                     <input type="text" id="title" name="title" value="<?= htmlspecialchars($title) ?>" required>
@@ -390,9 +396,9 @@ $current_categories = $article ? explode(',', $article['category_ids'] ?? '') : 
                 <div class="form-group">
                     <label for="categories">Kategori *</label>
                     <select id="categories" name="categories[]" multiple required>
-                        <?php 
+                        <?php
                         $current_category_ids = $category_ids ? explode(',', $category_ids) : [];
-                        foreach ($all_categories as $category): 
+                        foreach ($all_categories as $category):
                         ?>
                             <option value="<?= $category['id'] ?>" <?= in_array($category['id'], $current_category_ids) ? 'selected' : '' ?>><?= htmlspecialchars($category['name']) ?></option>
                         <?php endforeach; ?>
@@ -430,7 +436,7 @@ $current_categories = $article ? explode(',', $article['category_ids'] ?? '') : 
             // Sembunyikan toast setelah 3 detik
             setTimeout(() => {
                 toast.classList.remove('show');
-                
+
                 // Hapus dari DOM setelah animasi
                 setTimeout(() => {
                     container.removeChild(toast);
@@ -455,8 +461,11 @@ $current_categories = $article ? explode(',', $article['category_ids'] ?? '') : 
         <?php endif; ?>
     </script>
 
-    <footer>
+    <footer style="margin-top: 50px;">
         <p>© <?= date('Y') ?> Jelajah Nusantara | Kuliner jadi puisi, budaya jadi simfoni.</p>
+        <p>Ditulis oleh Sasabila Alya – Universitas Negeri Malang | Artikel Madiun Blog</p>
     </footer>
+
 </body>
+
 </html>

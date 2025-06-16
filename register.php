@@ -3,40 +3,45 @@ session_start();
 require 'koneksi.php';
 
 // User Authentication Functions
-function registerUser($nickname, $email, $password) {
+function registerUser($nickname, $email, $password, $role = 'pengunjung')
+{
     global $pdo;
     $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-    $stmt = $pdo->prepare("INSERT INTO author (nickname, email, password) VALUES (?, ?, ?)");
-    return $stmt->execute([$nickname, $email, $hashed_password]);
+    $stmt = $pdo->prepare("INSERT INTO author (nickname, email, password, role) VALUES (?, ?, ?, ?)");
+    return $stmt->execute([$nickname, $email, $hashed_password, $role]);
 }
 
-function loginUser($email, $password) {
+function loginUser($email, $password)
+{
     global $pdo;
     $stmt = $pdo->prepare("SELECT * FROM author WHERE email = ?");
     $stmt->execute([$email]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
-    
+
     if ($user && password_verify($password, $user['password'])) {
         return $user;
     }
     return false;
 }
 
-function getAuthorById($id) {
+function getAuthorById($id)
+{
     global $pdo;
     $stmt = $pdo->prepare("SELECT * FROM author WHERE id = ?");
     $stmt->execute([$id]);
     return $stmt->fetch(PDO::FETCH_ASSOC);
 }
 
-function getAuthorByNickname($nickname) {
+function getAuthorByNickname($nickname)
+{
     global $pdo;
     $stmt = $pdo->prepare("SELECT * FROM author WHERE nickname = ?");
     $stmt->execute([$nickname]);
     return $stmt->fetch(PDO::FETCH_ASSOC);
 }
 
-function getAuthorByEmail($email) {
+function getAuthorByEmail($email)
+{
     global $pdo;
     $stmt = $pdo->prepare("SELECT * FROM author WHERE email = ?");
     $stmt->execute([$email]);
@@ -44,11 +49,13 @@ function getAuthorByEmail($email) {
 }
 
 // Utility Functions
-function isLoggedIn() {
+function isLoggedIn()
+{
     return isset($_SESSION['author_id']);
 }
 
-function requireLogin() {
+function requireLogin()
+{
     if (!isLoggedIn()) {
         header("Location: login.php");
         exit();
@@ -63,15 +70,17 @@ if (isset($_SESSION['author_id'])) {
 
 $message = '';
 $error = '';
+$role = 'pengunjung';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $nickname = trim($_POST['nickname']);
     $email = trim($_POST['email']);
     $password = $_POST['password'];
     $confirm_password = $_POST['confirm_password'];
-    
+    $role = isset($_POST['role']) ? trim($_POST['role']) : 'pengunjung';
+
     // Validasi input
-    if (empty($nickname) || empty($email) || empty($password) || empty($confirm_password)) {
+    if (empty($nickname) || empty($email) || empty($password) || empty($confirm_password) || empty($role)) {
         $error = "Semua field harus diisi.";
     } elseif ($password !== $confirm_password) {
         $error = "Konfirmasi password tidak cocok.";
@@ -79,6 +88,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $error = "Password minimal 8 karakter.";
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $error = "Format email tidak valid.";
+    } elseif (!in_array($role, ['pengunjung', 'penulis'])) {
+        $error = "Peran yang dipilih tidak valid.";
     } else {
         // Cek apakah nickname atau email sudah ada
         if (getAuthorByNickname($nickname)) {
@@ -87,10 +98,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $error = "Email sudah terdaftar.";
         } else {
             // Register author
-            if (registerUser($nickname, $email, $password)) {
+            if (registerUser($nickname, $email, $password, $role)) {
                 $message = "Registrasi berhasil! Silakan login.";
                 // Reset form
-                $nickname = $email = '';
+                $nickname = $email = $role = '';
             } else {
                 $error = "Gagal mendaftar. Silakan coba lagi.";
             }
@@ -101,12 +112,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Registrasi - Madiun Blog</title>
     <link rel="icon" href="./assets/img/head_logo.jpg" type="image/jpg">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="./css/style.css">
     <style>
         .auth-container {
             max-width: 500px;
@@ -114,35 +126,35 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             padding: 30px;
             background: #fff;
             border-radius: 10px;
-            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
         }
-        
+
         .auth-header {
             text-align: center;
             margin-bottom: 30px;
         }
-        
+
         .auth-header h1 {
             color: #333;
             margin-bottom: 10px;
         }
-        
+
         .auth-header p {
             color: #666;
             margin: 0;
         }
-        
+
         .form-group {
             margin-bottom: 20px;
         }
-        
+
         .form-group label {
             display: block;
             margin-bottom: 5px;
             font-weight: bold;
             color: #333;
         }
-        
+
         .form-group input {
             width: 100%;
             padding: 12px;
@@ -152,30 +164,30 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             box-sizing: border-box;
             transition: border-color 0.3s;
         }
-        
+
         .form-group input:focus {
             outline: none;
             border-color: #e74c3c;
         }
-        
+
         .alert {
             padding: 15px;
             margin-bottom: 20px;
             border-radius: 5px;
         }
-        
+
         .alert-success {
             background-color: #d4edda;
             border-color: #c3e6cb;
             color: #155724;
         }
-        
+
         .alert-error {
             background-color: #f8d7da;
             border-color: #f5c6cb;
             color: #721c24;
         }
-        
+
         .btn-auth {
             width: 100%;
             padding: 12px;
@@ -187,26 +199,42 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             cursor: pointer;
             transition: background-color 0.3s;
         }
-        
+
         .btn-auth:hover {
             background-color: #c0392b;
         }
-        
+
         .auth-links {
             text-align: center;
             margin-top: 20px;
         }
-        
+
         .auth-links a {
             color: #e74c3c;
             text-decoration: none;
         }
-        
+
         .auth-links a:hover {
             text-decoration: underline;
         }
+
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            box-sizing: border-box;
+            transition: border-color 0.3s;
+        }
+
+        .form-group select:focus {
+            outline: none;
+            border-color: #e74c3c;
+        }
     </style>
 </head>
+
 <body>
     <div class="auth-container">
         <div class="auth-header">
@@ -217,7 +245,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         <?php if ($message): ?>
             <div class="alert alert-success"><?= htmlspecialchars($message) ?></div>
         <?php endif; ?>
-        
+
         <?php if ($error): ?>
             <div class="alert alert-error"><?= htmlspecialchars($error) ?></div>
         <?php endif; ?>
@@ -244,6 +272,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 <input type="password" id="confirm_password" name="confirm_password" required>
             </div>
 
+            <div class="form-group">
+                <label for="role">Pilih Peran *</label>
+                <select id="role" name="role" required>
+                    <option value="pengunjung" <?= $role === 'pengunjung' ? 'selected' : '' ?>>Pengunjung</option>
+                    <option value="penulis" <?= $role === 'penulis' ? 'selected' : '' ?>>Penulis</option>
+                </select>
+                <small>Pilih peran Anda dalam platform</small>
+            </div>
+
             <button type="submit" class="btn-auth">Daftar</button>
         </form>
 
@@ -255,6 +292,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     <footer style="margin-top: 50px;">
         <p>© <?= date('Y') ?> Jelajah Nusantara | Kuliner jadi puisi, budaya jadi simfoni.</p>
+        <p>Ditulis oleh Sasabila Alya – Universitas Negeri Malang | Artikel Madiun Blog</p>
     </footer>
+
 </body>
+
 </html>
