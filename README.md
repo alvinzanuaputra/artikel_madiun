@@ -179,35 +179,88 @@ Semua penulis menggunakan password yang sama:
 
 
 
-```
+``
+*1. INFORMASI DASAR WEBSITE ARTIKEL KOTA MADIUN*
+Link Utama Website:
+https://salsabila-artikel-madiun.kesug.com
+Detail Proyek:
+Developer: Nabila Ilmiatus S.
+GitHub: https://github.com/SalsabilaAlya26/project-uas-artikel-pemweb-kota-madiun.git
+Akses Langsung:
+Main Page (Pengunjung): https://salsabila-artikel-madiun.kesug.com/index.php
+Dashboard (Pengunjung): https://salsabila-artikel-madiun.kesug.com/dashboard.php
 
-Penjelasan halaman index.php :
-Toaster muncul ketika ada $_SESSION['toast_message'], lalu dihapus setelah ditampilkan.
+*2. FITUR TOMBOL "LIHAT SEMUA ARTIKEL"*
+Tombol "Lihat Semua Artikel":
+- Belum login: Redirect ke login.php
+- Sudah login: Muncul toaster pink gelap dengan pesan:
+  "Anda sudah masuk sebagai penulis"
+  "Anda sudah masuk sebagai pengunjung"
+  "Masuk untuk melihat artikel atau menulis artikel"
 
-Warna pink agak gelap #db7093, teks hitam.
+*3. FITUR TOMBOL PORTAL DINAMIS*
+Tombol Portal (Dinamis):
+- Login sebagai penulis: "Portal Penulis" (ke dashboard.php)
+- Login sebagai pengunjung: "Portal Pengunjung" (ke main.php)
+- Belum login: "Masuk"
+Tombol "Keluar":
+- Hanya muncul jika sudah login
+- Tidak ditampilkan jika belum login
 
-Tombol keluar pakai PHP display: <?= isLoggedIn() ? 'block' : 'none' ?>
+*4. AKUN DEMO UNTUK TESTING*
+PENULIS
+Username: SABIL
+Password: 12345678
+PENGUNJUNG
+Username: CANTIKA MELATI
+Password: 12345678
+Password terenkripsi MD5
 
-Semua tombol punya logika POST tersendiri di atas.
+*5. PANDUAN PENGGUNAAN*
+Cara Penggunaan:
+1. Daftar: Pilih role (pengunjung/penulis)
+2. Login: Setelah berhasil login akan diarahkan ke index.php
+3. Navigasi: Gunakan tombol dinamis sesuai role user
+Catatan: Semua navigasi bersifat dinamis berdasarkan status login dan role user*1. INFORMASI DASAR WEBSITE ARTIKEL KOTA MADIUN*
+Link Utama Website:
+https://salsabila-artikel-madiun.kesug.com
+Detail Proyek:
+Developer: Nabila Ilmiatus S.
+GitHub: https://github.com/SalsabilaAlya26/project-uas-artikel-pemweb-kota-madiun.git
+Akses Langsung:
+Main Page (Pengunjung): https://salsabila-artikel-madiun.kesug.com/index.php
+Dashboard (Pengunjung): https://salsabila-artikel-madiun.kesug.com/dashboard.php
 
-bagian tombol 1, Lihat Semua Artikel, 
-munculkan echo toaster ketika user klik tombol ini, jika table author belum masuk sebagai penulis atau pengunjung arahkan ke page login.php
+*2. FITUR TOMBOL "LIHAT SEMUA ARTIKEL"*
+Tombol "Lihat Semua Artikel":
+- Belum login: Redirect ke login.php
+- Sudah login: Muncul toaster pink gelap dengan pesan:
+  "Anda sudah masuk sebagai penulis"
+  "Anda sudah masuk sebagai pengunjung"
+  "Masuk untuk melihat artikel atau menulis artikel"
 
+*3. FITUR TOMBOL PORTAL DINAMIS*
+Tombol Portal (Dinamis):
+- Login sebagai penulis: "Portal Penulis" (ke dashboard.php)
+- Login sebagai pengunjung: "Portal Pengunjung" (ke main.php)
+- Belum login: "Masuk"
+Tombol "Keluar":
+- Hanya muncul jika sudah login
+- Tidak ditampilkan jika belum login
 
-bagian tombol 2, Portal penulis
-jika sudah login sebagai penulis = Portal Penulis, mengarah ke page dashboard.php
-jika sudah login sebagai pengunjung = Portal Pengunjung, mengarah ke main.php
-jika belum login sebagai apapun = Masuk
+*4. AKUN DEMO UNTUK TESTING*
+PENULIS
+Username: SABIL
+Password: 12345678
+PENGUNJUNG
+Username: CANTIKA MELATI
+Password: 12345678
+Password terenkripsi MD5
 
-bagian tombol 3, Keluar
-jika sudah login munculkan tombol keluar
-jika belum login hilangkan tombol Keluar
-
-
-
-poin tambahan : warna toaster pink agak gelap, tulisan hitam
-echo dalam toaster 
-jika user atau author sudah login sebagai penulis, munculkan toaster "Anda sudah masuk sebagai penulis"
-jika user atau author sudah login sebagai pengunjung, munculkan toaster "Anda sudah masuk sebagai pengunjung"
-jika user belum login munculkan pesan "Masuk untuk melihat artikel atau menulis artikel"
+*5. PANDUAN PENGGUNAAN*
+Cara Penggunaan:
+1. Daftar: Pilih role (pengunjung/penulis)
+2. Login: Setelah berhasil login akan diarahkan ke index.php
+3. Navigasi: Gunakan tombol dinamis sesuai role user
+Catatan: Semua navigasi bersifat dinamis berdasarkan status login dan role user
 ```

@@ -1,32 +1,42 @@
-[2025-06-16 20:35:30] Artikel ID: 16
-[2025-06-16 20:35:30] Judul Baru: efaf
-[2025-06-16 20:35:30] Gambar Baru: 1750106112_950804018dc22fef.png
-[2025-06-16 20:35:30] Kategori Baru: 4
-[2025-06-16 20:35:45] Artikel ID: 16
-[2025-06-16 20:35:45] Judul Baru: efaf
-[2025-06-16 20:35:45] Gambar Baru: 1750106112_950804018dc22fef.png
-[2025-06-16 20:35:45] Kategori Baru: 4
-[2025-06-16 20:35:45] Update Artikel: ID=16, Judul=efaf...
-[2025-06-16 20:36:01] Artikel ID: 16
-[2025-06-16 20:36:01] Judul Baru: efaf
-[2025-06-16 20:36:01] Gambar Baru: 1750106145_Screenshot 2025-04-15 225826.png
-[2025-06-16 20:36:01] Kategori Baru: 5
-[2025-06-16 20:36:01] Update Artikel: ID=16, Judul=efaf...
-[2025-06-16 20:36:09] Artikel ID: 16
-[2025-06-16 20:36:09] Judul Baru: efaf
-[2025-06-16 20:36:09] Gambar Baru: 1750106161_Screenshot 2025-04-15 232615.png
-[2025-06-16 20:36:09] Kategori Baru: 5
-[2025-06-16 20:36:09] Update Artikel: ID=16, Judul=efaf...
-[2025-06-16 20:36:20] Artikel ID: 16
-[2025-06-16 20:36:20] Judul Baru: efaf
-[2025-06-16 20:36:20] Gambar Baru: 1750106169_Screenshot 2025-04-14 214239.png
-[2025-06-16 20:36:20] Kategori Baru: 5
-[2025-06-16 20:36:28] Artikel ID: 16
-[2025-06-16 20:36:28] Judul Baru: efaf
-[2025-06-16 20:36:28] Gambar Baru: 1750106169_Screenshot 2025-04-14 214239.png
-[2025-06-16 20:36:28] Kategori Baru: 5
-[2025-06-16 20:36:28] Update Artikel: ID=16, Judul=efaf...
-[2025-06-16 20:39:10] Artikel ID: 1
-[2025-06-16 20:39:10] Judul Baru: "Saat Rasa Menjadi Rumah : Kuliner Madiun, Peluk Hangat di Meja Makan"
-[2025-06-16 20:39:10] Gambar Baru: Nasi-Pecel-Madiun.jpg
-[2025-06-16 20:39:10] Kategori Baru: 6
+*1. INFORMASI DASAR WEBSITE ARTIKEL KOTA MADIUN*
+Link Utama Website:
+https://salsabila-artikel-madiun.kesug.com
+Detail Proyek:
+Developer: Nabila Ilmiatus S.
+GitHub: https://github.com/SalsabilaAlya26/project-uas-artikel-pemweb-kota-madiun.git
+Akses Langsung:
+Main Page (Pengunjung): https://salsabila-artikel-madiun.kesug.com/index.php
+Dashboard (Pengunjung): https://salsabila-artikel-madiun.kesug.com/dashboard.php
+
+*2. FITUR TOMBOL "LIHAT SEMUA ARTIKEL"*
+Tombol "Lihat Semua Artikel":
+- Belum login: Redirect ke login.php
+- Sudah login: Muncul toaster pink gelap dengan pesan:
+  "Anda sudah masuk sebagai penulis"
+  "Anda sudah masuk sebagai pengunjung"
+  "Masuk untuk melihat artikel atau menulis artikel"
+
+*3. FITUR TOMBOL PORTAL DINAMIS*
+Tombol Portal (Dinamis):
+- Login sebagai penulis: "Portal Penulis" (ke dashboard.php)
+- Login sebagai pengunjung: "Portal Pengunjung" (ke main.php)
+- Belum login: "Masuk"
+Tombol "Keluar":
+- Hanya muncul jika sudah login
+- Tidak ditampilkan jika belum login
+
+*4. AKUN DEMO UNTUK TESTING*
+PENULIS
+Username: SABIL
+Password: 12345678
+PENGUNJUNG
+Username: CANTIKA MELATI
+Password: 12345678
+Password terenkripsi MD5
+
+*5. PANDUAN PENGGUNAAN*
+Cara Penggunaan:
+1. Daftar: Pilih role (pengunjung/penulis)
+2. Login: Setelah berhasil login akan diarahkan ke index.php
+3. Navigasi: Gunakan tombol dinamis sesuai role user
+Catatan: Semua navigasi bersifat dinamis berdasarkan status login dan role user
